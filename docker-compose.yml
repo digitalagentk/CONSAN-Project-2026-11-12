@@ -1,0 +1,66 @@
+services:
+  consan_sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: consan_sqlserver
+    hostname: consan-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - MSSQL_PID=Express
+    ports:
+      # ⚠️ مقيّد بـ localhost فقط — لا يُكشف للشبكة
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - consan_sql_data:/var/opt/mssql
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - consan_net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: unless-stopped
+
+  consan_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: consan_app
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://0.0.0.0:8080}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      - ConnectionStrings__MigrationConnection=${MIGRATION_CONNECTION_STRING}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    volumes:
+      # ⚠️ مهم جداً — الصور والبيانات تبقى بعد rebuild
+      - consan_uploads:/app/wwwroot/uploads
+      - consan_appdata:/app/data
+      - consan_dp_keys:/root/.aspnet/DataProtection-Keys
+      - consan_logs:/app/logs
+    depends_on:
+      consan_sqlserver:
+        condition: service_healthy
+    networks:
+      - consan_net
+    restart: unless-stopped
+
+volumes:
+  consan_sql_data:
+    driver: local
+  consan_uploads:
+    driver: local
+  consan_appdata:
+    driver: local
+  consan_dp_keys:
+    driver: local
+  consan_logs:
+    driver: local
+
+networks:
+  consan_net:
+    driver: bridge

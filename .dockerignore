@@ -1,0 +1,41 @@
+# Build artifacts
+bin/
+obj/
+*.user
+*.suo
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+README.md
+
+# Backups
+*.bak
+*.bak2
+*.backup_*
+Program.cs.bak*
+text_2.csproj.bak
+Dockerfile.bak*
+docker-compose.yml.bak*
+*_backup_*
+
+# 🔐 Secrets — لا تدخل الحاوية!
+.env
+.env.local
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

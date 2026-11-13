@@ -1,0 +1,42 @@
+# ==== Environment & Secrets ====
+.env
+.env.local
+.env.*.local
+*.env
+
+# ==== Build Artifacts ====
+bin/
+obj/
+*.user
+*.suo
+
+# ==== IDE ====
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# ==== Backups ====
+*.bak
+*.bak2
+*.backup_*
+*_backup_*
+
+# ==== OS ====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==== Logs ====
+*.log
+logs/
+
+# ==== Temporary ====
+tmp/
+temp/
+*.tmp
+
+# ==== Database ====
+*.mdf
+*.ldf
+*.ndf
