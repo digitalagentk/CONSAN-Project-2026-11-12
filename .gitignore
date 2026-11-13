@@ -40,3 +40,5 @@ temp/
 *.mdf
 *.ldf
 *.ndf
+# Local design preview (not part of the site)
+_preview/

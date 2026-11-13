@@ -79,7 +79,7 @@ namespace ConsanWebApp.Data
                         AddressAr = "النجف الأشرف - الحي الصناعي",
                         AddressEn = "Najaf Al-Ashraf - Industrial District",
                         AddressKu = "نەجەف ئەشرەف - گەڕەکی پیشەسازی",
-                        Phone = "07801048314",
+                        Phone = "07801763759",
                         Latitude = 31.9994,
                         Longitude = 44.3294,
                         IsApproved = true
@@ -193,7 +193,7 @@ namespace ConsanWebApp.Data
                     ["aboutTag"] = "من نحن",
                     ["aboutTitle"] = "نبذة عن <span class=\"highlight\">مؤسستنا</span>",
                     ["servicesTitle"] = "ما <span class=\"highlight\">نقدمه</span>",
-                    ["footerCopy"] = "© 2026 CONSAN®. جميع الحقوق محفوظة"
+                    ["footerCopy"] = "© ورشة الفرات الأوسط"
                 };
                 foreach (var kv in arDefaults)
                 {

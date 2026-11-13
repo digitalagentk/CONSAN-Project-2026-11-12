@@ -1,0 +1,19 @@
+/* ME Workshop — adjustments that bring the inner pages' existing layouts into the new design.
+   Loaded after each page's own styles. */
+section :is([class*="card"], [class*="block"], [class*="wrapper"], [class*="panel"], [class*="item"], [class*="step"], [class*="tag"], [class*="box"], [class*="btn"], input, select, textarea, table):not([class*="leaflet"]):not(.section-tag),
+.modal-box, .modal-overlay :is(input, button, textarea, [class*="wrap"]) { border-radius: var(--radius) !important; }
+.section-tag { border: 0 !important; background: none !important; padding: 0 !important; border-radius: 0 !important; letter-spacing: 0 !important; text-transform: none !important; }
+
+/* emoji stood in for icons; the headings carry these blocks on their own */
+.ind-highlight-icon, .ind-feature-icon, .guide-icon, .safety-icon, .explorer-card-icon { display: none !important; }
+
+:is(.ind-highlight-card, .ind-feature-card) { text-align: start !important; border-top: 2px solid var(--accent) !important; }
+:is(.ind-highlight-card, .ind-feature-card, .explorer-card, .guide-block):hover { transform: none !important; }
+.ind-top-header { text-align: start !important; }
+.ind-search-wrap { justify-content: flex-start !important; }
+.ind-search-box { margin-inline: 0 !important; }
+.guide-block h2, .explorer-card h3, .ind-highlight-card h3, .ind-feature-card h3 { font-family: var(--f-display); }
+select.form-input { padding-block: 8px; line-height: 1.7; }
+.dept-phone, .ind-dept-table td:last-child { font-family: "Barlow Condensed", sans-serif; font-size: 1.1rem; letter-spacing: 0.04em; direction: ltr; }
+.leaflet-popup-content { font-family: var(--f-body); color: #1A1D1F; }
+.leaflet-popup-content strong { color: #6E5222 !important; }

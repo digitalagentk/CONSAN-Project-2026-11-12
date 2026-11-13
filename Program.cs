@@ -1,5 +1,6 @@
 ﻿// =============================================================================
-// CONSAN® / Middle Euphrates Workshop — Web App + Admin Dashboard
+// ME Workshop — Middle Euphrates Workshop · web app + admin dashboard
+// Public pages: Site/Shared.cs, Site/HomePage.cs, wwwroot/me/*. Inner pages and admin: below.
 // -----------------------------------------------------------------------------
 // PROJECT SETUP (Rider):
 //   The .csproj MUST use the ASP.NET Core "Web" SDK, e.g.:
@@ -49,7 +50,9 @@ namespace ConsanWebApp
 
             // ===== Connection String =====
             var connectionString = System.Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-                ?? "Server=127.0.0.1,1433;Database=ConsanDb;User Id=sa;Password=Consan@2026!Strong;TrustServerCertificate=True;MultipleActiveResultSets=true";
+                ?? ("Server=127.0.0.1,1433;Database=ConsanDb;User Id=sa;Password="
+                    + (System.Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD") ?? "")
+                    + ";TrustServerCertificate=True;MultipleActiveResultSets=true");
 
                         // ===== DbContext =====
             builder.Services.AddDbContext<AppDbContext>(options =>
@@ -169,8 +172,8 @@ namespace ConsanWebApp
             // ======================  PUBLIC PAGES  ======================
             // =========================================================
             app.MapGet("/", () => Results.Content(Pages.GetHomePage(), "text/html; charset=utf-8"));
-            app.MapGet("/about", () => Results.Content(Pages.GetAboutPage(), "text/html; charset=utf-8"));
-            app.MapGet("/phone-numbers", () => Results.Content(Pages.GetPhoneNumbersPage(), "text/html; charset=utf-8"));
+            app.MapGet("/about", () => Results.Redirect("/#story"));
+            app.MapGet("/phone-numbers", () => Results.Redirect("/#contact"));
             app.MapGet("/login", () => Results.Content(Pages.GetLoginPage(), "text/html; charset=utf-8"));
             app.MapGet("/service", () => Results.Content(Pages.GetServiceRequestPage(), "text/html; charset=utf-8"));
             app.MapGet("/industrial-services", () => Results.Content(Pages.GetIndustrialServicesPage(), "text/html; charset=utf-8"));
@@ -616,7 +619,7 @@ namespace ConsanWebApp
             });
 
             Console.WriteLine("========================================");
-            Console.WriteLine("  CONSAN® - Premium Automotive Sealing  ");
+            Console.WriteLine("  ME Workshop - Middle Euphrates Workshop");
             Console.WriteLine("========================================");
             Console.WriteLine();
             Console.WriteLine("✅ Server running at: http://localhost:8080/");
@@ -750,7 +753,7 @@ namespace ConsanWebApp
     // ================================  STORE  ====================================
     // =============================================================================
 
-    public static class Store
+    public static partial class Store
     {
         // ⚠️ AdminPassword من Environment Variable — لا hardcoded!
         private static readonly string AdminPassword = 
@@ -812,6 +815,8 @@ namespace ConsanWebApp
             _archival = LoadOrDefault(ArchivalPath, DefaultArchivalAlbum);
             _explorerCards = LoadOrDefault(ExplorerCardsPath, DefaultExplorerCards);
             _guideContent = LoadOrDefault(GuideContentPath, DefaultGuideContent);
+
+            UpgradeLegacyData();
         }
 
         private static T LoadOrDefault<T>(string path, Func<T> makeDefault)
@@ -1348,396 +1353,6 @@ namespace ConsanWebApp
         // Default (seed) content
         // ---------------------------------------------------------------
 
-        private static SiteContentData DefaultContent()
-        {
-            var data = new SiteContentData();
-
-            data.HeroImages = new List<string>
-            {
-                "https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=1920&h=1080&fit=crop",
-                "https://images.unsplash.com/photo-1581092335876-1b5a6b5b0b1f?w=1920&h=1080&fit=crop",
-                "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1920&h=1080&fit=crop",
-                "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=1920&h=1080&fit=crop"
-            };
-
-            data.Translations["ar"] = new Dictionary<string, string>
-            {
-                ["heroTitle"] = """<span class="highlight">ورشة الفرات الأوسط</span>""",
-                ["heroSubtitle"] = """لتصليح وبيع كافة أنواع <span class="highlight">البمبات والنوزلات</span> بأحدث الطرق الفنية""",
-                ["heroManagement"] = """<span class="highlight">بإدارة:</span> الحاج سمير محمد الكرماني وأولاده""",
-                ["heroAddress"] = """<span class="highlight">العنوان:</span> النجف الأشرف - الحي الصناعي - منتصف شارع إعدادية الصناعة""",
-                ["navHome"] = "الرئيسية",
-                ["navAbout"] = "من نحن",
-                ["navServices"] = "خدماتنا",
-                ["navIndustrial"] = "خدمات صناعية",
-                ["navExplorer"] = "المستكشف",
-                ["navGuide"] = "الدليل الشامل",
-                ["aboutTag"] = "من نحن",
-                ["aboutTitle"] = """نبذة عن <span class="highlight">مؤسستنا</span>""",
-                ["aboutSub"] = "خبرة تمتد لأكثر من 40 عاماً في مجال البمبات والنوزلات",
-                ["aboutMissionTitle"] = "رسالتنا",
-                ["aboutMissionDesc"] = "تقديم حلول إحكام عالية الجودة تضمن موثوقية المحرك وأداءه في جميع أنحاء العالم",
-                ["aboutVisionTitle"] = "رؤيتنا",
-                ["aboutVisionDesc"] = "أن نكون الرائد العالمي في صناعة جوانات رأس الأسطوانة، ونضع المعيار للجودة والابتكار",
-                ["aboutValuesTitle"] = "قيمنا",
-                ["aboutValuesDesc"] = """<strong>الجودة</strong> — هندسة دقيقة. <strong>الموثوقية</strong> — موثوق بها من قبل المحترفين. <strong>الابتكار</strong> — تحسين مستمر.""",
-                ["aboutStoryTitle"] = "قصتنا",
-                ["aboutStoryDesc"] = "تأسست CONSAN® في عام 1980، وكانت في طليعة تكنولوجيا إحكام السيارات، وتخدم العملاء في أكثر من 50 دولة",
-                ["stat1Label"] = "سنوات من التميز",
-                ["stat2Label"] = "دولة تم خدمتها",
-                ["stat3Label"] = "منتج تم تصنيعه",
-                ["stat4Label"] = "رضا العملاء",
-                ["teamTitle"] = """فريقنا <span class="highlight">الخبير</span>""",
-                ["teamSub"] = "المحترفون وراء منتجاتنا عالية الجودة",
-                ["team1Name"] = "أحمد يلماز",
-                ["team1Role"] = "الرئيس التنفيذي والمؤسس",
-                ["team1Bio"] = "أكثر من 40 عاماً في مجال إحكام السيارات",
-                ["team2Name"] = "محمد دمير",
-                ["team2Role"] = "رئيس الهندسة",
-                ["team2Bio"] = "خبير في التصنيع الدقيق",
-                ["team3Name"] = "آيشة كايا",
-                ["team3Role"] = "مدير مراقبة الجودة",
-                ["team3Bio"] = "ضمان معايير الجودة العالية",
-                ["team4Name"] = "مصطفى أوز",
-                ["team4Role"] = "مدير الإنتاج",
-                ["team4Bio"] = "الإشراف على التميز التصنيعي",
-                ["ctaBadge"] = "الجودة منذ 1980",
-                ["ctaTitle"] = """ابدأ رحلة <span>النجاح</span>""",
-                ["ctaDesc"] = "انضم إلى آلاف العملاء الراضين الذين يثقون بـ CONSAN® للحصول على حلول عالية الجودة",
-                ["feature1Title"] = "جودة فائقة",
-                ["feature1Desc"] = "مصنوعة بأعلى المعايير",
-                ["feature2Title"] = "ثقة عالمية",
-                ["feature2Desc"] = "موثوق في أكثر من 50 دولة",
-                ["feature3Title"] = "دعم خبير",
-                ["feature3Desc"] = "دعم فني مخصص",
-                ["ctaBtn"] = "احصل على جودة فائقة",
-                ["featuredTag"] = "المميزات",
-                ["featuredTitle"] = """لماذا <span class="highlight">تختارنا</span>""",
-                ["featuredSub"] = "خبرة تمتد لأكثر من 40 عاماً في مجال البمبات والنوزلات",
-                ["f1Title"] = "دقة هندسية",
-                ["f1Desc"] = "أحدث المعدات والتقنيات لضمان أعلى مستويات الدقة",
-                ["f2Title"] = "خبرة متراكمة",
-                ["f2Desc"] = "أكثر من 40 عاماً من الخبرة في مجال البمبات والنوزلات",
-                ["f3Title"] = "جودة مضمونة",
-                ["f3Desc"] = "جميع أعمالنا مضمونة بأعلى معايير الجودة",
-                ["heritageTag"] = "خبرة وحرفيون",
-                ["heritageTitle"] = """حرفيون <span class="highlight">متمرسون</span>""",
-                ["heritageSub"] = "فريق من الخبراء المتخصصين في أنظمة الحقن الديزل والبمبات",
-                ["h1Title"] = "خبرة تمتد لعقود",
-                ["h1Desc"] = "أكثر من 40 عاماً من الخبرة العملية في مجال تصليح وبيع البمبات والنوزلات",
-                ["h2Title"] = "متخصصون في أنظمة الحقن",
-                ["h2Desc"] = "خبراء في تشخيص وإصلاح جميع أنواع أنظمة الحقن الديزل والإلكترونية",
-                ["h3Title"] = "تقنيات حديثة",
-                ["h3Desc"] = "نستخدم أحدث أجهزة الفحص والتشخيص الإلكترونية لضمان الدقة",
-                ["h4Title"] = "خبرة تراكمية",
-                ["h4Desc"] = "مزيج فريد من الخبرة التقليدية والمهارات الحديثة في ورشة واحدة",
-                ["servicesTag"] = "خدماتنا",
-                ["servicesTitle"] = """ما <span class="highlight">نقدمه</span>""",
-                ["servicesSub"] = "خدمات متخصصة في عالم البمبات والنوزلات بأعلى معايير الجودة",
-                ["sTag1"] = "متخصص",
-                ["sTitle1"] = "تصليح البمبات",
-                ["sDesc1"] = "تصليح كافة أنواع البمبات الديزل والبنزين بأحدث التقنيات",
-                ["sLink1"] = "اعرف المزيد ←",
-                ["sTag2"] = "دقة عالية",
-                ["sTitle2"] = "النوزلات والحاقنات",
-                ["sDesc2"] = "فحص وتنظيف وضبط النوزلات لتحسين أداء المحرك",
-                ["sLink2"] = "اعرف المزيد ←",
-                ["sTag3"] = "احترافي",
-                ["sTitle3"] = "فحص إلكتروني",
-                ["sDesc3"] = "تشخيص دقيق باستخدام أحدث أجهزة الفحص الإلكترونية",
-                ["sLink3"] = "اعرف المزيد ←",
-                ["solTag"] = "حلولنا",
-                ["solTitle"] = """حلول <span class="highlight">مبتكرة</span>""",
-                ["solSub"] = "نقدم حلولاً متكاملة لجميع احتياجاتكم",
-                ["sol1Title"] = "تشخيص دقيق",
-                ["sol1Desc"] = "فحص متكامل لأنظمة الحقن",
-                ["sol2Title"] = "صيانة متخصصة",
-                ["sol2Desc"] = "إصلاح احترافي للبمبات",
-                ["sol3Title"] = "قطع غيار أصلية",
-                ["sol3Desc"] = "توفير قطع غيار عالية الجودة",
-                ["sol4Title"] = "استشارات فنية",
-                ["sol4Desc"] = "نصائح خبراء لتحسين الأداء",
-                ["wwTag"] = "ماذا نفعل",
-                ["wwTitle"] = """مجالات <span class="highlight">خبرتنا</span>""",
-                ["wwSub"] = "خبرة شاملة في مجال البمبات والنوزلات",
-                ["ww1Title"] = "تشخيص الأعطال",
-                ["ww1Desc"] = "فحص دقيق لتحديد المشاكل بدقة",
-                ["ww2Title"] = "إصلاح متكامل",
-                ["ww2Desc"] = "إصلاح شامل لجميع أنواع البمبات",
-                ["ww3Title"] = "بيع قطع غيار",
-                ["ww3Desc"] = "توفير قطع غيار أصلية ومضمونة",
-                ["ww4Title"] = "ضبط الأداء",
-                ["ww4Desc"] = "تحسين أداء المحرك وزيادة الكفاءة",
-                ["ww5Title"] = "استشارات فنية",
-                ["ww5Desc"] = "نصائح وإرشادات من خبراء المجال",
-                ["ww6Title"] = "خدمة ما بعد البيع",
-                ["ww6Desc"] = "دعم ومتابعة مستمرة للعملاء",
-                ["footerText"] = "جوانات عالية الجودة وحلول إحكام للسيارات منذ 1980",
-                ["footerCopy"] = "© 2026 CONSAN®. جميع الحقوق محفوظة",
-                ["footerLinkedin"] = "لينكد إن",
-                ["footerFacebook"] = "فيسبوك",
-                ["footerInstagram"] = "إنستغرام",
-                ["contactTitle"] = "أرقام التواصل",
-                ["contactLabel1"] = "ابو مصطفى",
-                ["contactLabel2"] = "ابو رضا",
-                ["contactLabel3"] = "ابو علي",
-                ["contactBadgeText"] = "تواصل معنا",
-                ["contactHint"] = "اضغط على الرقم أو أيقونة واتساب للتواصل"
-            };
-
-            data.Translations["en"] = new Dictionary<string, string>
-            {
-                ["heroTitle"] = """<span class="highlight">Middle Euphrates Workshop</span>""",
-                ["heroSubtitle"] = """Repair and sale of all types of <span class="highlight">pumps and nozzles</span> using the latest technical methods""",
-                ["heroManagement"] = """<span class="highlight">Managed by:</span> Hajj Samir Mohammed Al-Kermani and his sons""",
-                ["heroAddress"] = """<span class="highlight">Address:</span> Najaf Al-Ashraf - Industrial District - Middle of Industrial High School Street""",
-                ["navHome"] = "Home",
-                ["navAbout"] = "About",
-                ["navServices"] = "Our Services",
-                ["navIndustrial"] = "Industrial Services",
-                ["navExplorer"] = "Explorer",
-                ["navGuide"] = "Comprehensive Guide",
-                ["aboutTag"] = "About Us",
-                ["aboutTitle"] = """About <span class="highlight">Our Company</span>""",
-                ["aboutSub"] = "Over 40 years of experience in pumps and nozzles",
-                ["aboutMissionTitle"] = "Our Mission",
-                ["aboutMissionDesc"] = "To deliver premium quality automotive sealing solutions that ensure engine reliability and performance worldwide",
-                ["aboutVisionTitle"] = "Our Vision",
-                ["aboutVisionDesc"] = "To be the global leader in cylinder head gasket manufacturing, setting the standard for quality and innovation",
-                ["aboutValuesTitle"] = "Our Values",
-                ["aboutValuesDesc"] = """<strong>Quality</strong> — Precision engineering. <strong>Reliability</strong> — Trusted by professionals. <strong>Innovation</strong> — Continuous improvement.""",
-                ["aboutStoryTitle"] = "Our Story",
-                ["aboutStoryDesc"] = "Founded in 1980, CONSAN® has been at the forefront of automotive sealing technology, serving customers in over 50 countries.",
-                ["stat1Label"] = "Years of Excellence",
-                ["stat2Label"] = "Countries Served",
-                ["stat3Label"] = "Products Manufactured",
-                ["stat4Label"] = "Customer Satisfaction",
-                ["teamTitle"] = """Our <span class="highlight">Expert</span> Team""",
-                ["teamSub"] = "The professionals behind our premium quality products",
-                ["team1Name"] = "Ahmet Yılmaz",
-                ["team1Role"] = "CEO & Founder",
-                ["team1Bio"] = "40+ years in automotive sealing",
-                ["team2Name"] = "Mehmet Demir",
-                ["team2Role"] = "Head of Engineering",
-                ["team2Bio"] = "Expert in precision manufacturing",
-                ["team3Name"] = "Ayşe Kaya",
-                ["team3Role"] = "Quality Control Manager",
-                ["team3Bio"] = "Ensuring premium quality standards",
-                ["team4Name"] = "Mustafa Öz",
-                ["team4Role"] = "Production Director",
-                ["team4Bio"] = "Overseeing manufacturing excellence",
-                ["ctaBadge"] = "Quality Since 1980",
-                ["ctaTitle"] = """Start Your <span>Success</span> Journey""",
-                ["ctaDesc"] = "Join thousands of satisfied customers who trust CONSAN® for premium quality automotive sealing solutions",
-                ["feature1Title"] = "Premium Quality",
-                ["feature1Desc"] = "Engineered to the highest standards",
-                ["feature2Title"] = "Global Trust",
-                ["feature2Desc"] = "Trusted in over 50 countries",
-                ["feature3Title"] = "Expert Support",
-                ["feature3Desc"] = "Dedicated technical support",
-                ["ctaBtn"] = "Get Premium Quality",
-                ["featuredTag"] = "Features",
-                ["featuredTitle"] = """Why <span class="highlight">Choose Us</span>""",
-                ["featuredSub"] = "Over 40 years of experience in pumps and nozzles",
-                ["f1Title"] = "Precision Engineering",
-                ["f1Desc"] = "Latest equipment and techniques ensuring highest precision",
-                ["f2Title"] = "Deep Expertise",
-                ["f2Desc"] = "Over 40 years of experience in pumps and nozzles",
-                ["f3Title"] = "Guaranteed Quality",
-                ["f3Desc"] = "All work is guaranteed to the highest quality standards",
-                ["heritageTag"] = "Heritage & Craftsmen",
-                ["heritageTitle"] = """Master <span class="highlight">Craftsmen</span>""",
-                ["heritageSub"] = "A team of experts specialized in diesel injection systems and pumps",
-                ["h1Title"] = "Decades of Experience",
-                ["h1Desc"] = "Over 40 years of hands-on experience in pump repair and sales",
-                ["h2Title"] = "Injection System Specialists",
-                ["h2Desc"] = "Experts in diagnosing and repairing all types of diesel and electronic injection systems",
-                ["h3Title"] = "Modern Technology",
-                ["h3Desc"] = "Using the latest electronic diagnostic equipment for precision",
-                ["h4Title"] = "Cumulative Expertise",
-                ["h4Desc"] = "A unique blend of traditional expertise and modern skills under one roof",
-                ["servicesTag"] = "Our Services",
-                ["servicesTitle"] = """What We <span class="highlight">Offer</span>""",
-                ["servicesSub"] = "Specialized services in pumps and nozzles with the highest quality standards",
-                ["sTag1"] = "Specialized",
-                ["sTitle1"] = "Pump Repair",
-                ["sDesc1"] = "Repair of all types of diesel and gasoline pumps with latest techniques",
-                ["sLink1"] = "Learn More →",
-                ["sTag2"] = "High Precision",
-                ["sTitle2"] = "Nozzles & Injectors",
-                ["sDesc2"] = "Inspection, cleaning and calibration of nozzles to improve engine performance",
-                ["sLink2"] = "Learn More →",
-                ["sTag3"] = "Professional",
-                ["sTitle3"] = "Electronic Diagnosis",
-                ["sDesc3"] = "Accurate diagnosis using the latest electronic testing equipment",
-                ["sLink3"] = "Learn More →",
-                ["solTag"] = "Our Solutions",
-                ["solTitle"] = """Innovative <span class="highlight">Solutions</span>""",
-                ["solSub"] = "Comprehensive solutions for all your needs",
-                ["sol1Title"] = "Accurate Diagnosis",
-                ["sol1Desc"] = "Comprehensive inspection of injection systems",
-                ["sol2Title"] = "Specialized Maintenance",
-                ["sol2Desc"] = "Professional pump repair and maintenance",
-                ["sol3Title"] = "Genuine Parts",
-                ["sol3Desc"] = "High-quality genuine spare parts supply",
-                ["sol4Title"] = "Technical Consulting",
-                ["sol4Desc"] = "Expert advice for performance optimization",
-                ["wwTag"] = "What We Do",
-                ["wwTitle"] = """Areas of <span class="highlight">Expertise</span>""",
-                ["wwSub"] = "Comprehensive expertise in pumps and nozzles",
-                ["ww1Title"] = "Fault Diagnosis",
-                ["ww1Desc"] = "Precise inspection to identify issues accurately",
-                ["ww2Title"] = "Integrated Repair",
-                ["ww2Desc"] = "Comprehensive repair of all pump types",
-                ["ww3Title"] = "Parts Sales",
-                ["ww3Desc"] = "Genuine and guaranteed spare parts supply",
-                ["ww4Title"] = "Performance Tuning",
-                ["ww4Desc"] = "Engine performance optimization for efficiency",
-                ["ww5Title"] = "Technical Consulting",
-                ["ww5Desc"] = "Expert guidance and recommendations",
-                ["ww6Title"] = "After-Sales Service",
-                ["ww6Desc"] = "Continuous support and follow-up for customers",
-                ["footerText"] = "Premium quality cylinder head gaskets and automotive sealing solutions since 1980",
-                ["footerCopy"] = "© 2026 CONSAN®. All rights reserved",
-                ["footerLinkedin"] = "LinkedIn",
-                ["footerFacebook"] = "Facebook",
-                ["footerInstagram"] = "Instagram",
-                ["contactTitle"] = "Contact Numbers",
-                ["contactLabel1"] = "Abu Mustafa",
-                ["contactLabel2"] = "Abu Reda",
-                ["contactLabel3"] = "Abu Ali",
-                ["contactBadgeText"] = "Contact Us",
-                ["contactHint"] = "Tap the number or WhatsApp icon to chat"
-            };
-
-            data.Translations["ku"] = new Dictionary<string, string>
-            {
-                ["heroTitle"] = """<span class="highlight">کارگەی ناوەڕاستی فورات</span>""",
-                ["heroSubtitle"] = """چاککردنەوە و فرۆشتنی هەموو جۆرەکانی <span class="highlight">پەمپ و نۆزل</span> بە پێشکەوتووترین ڕێگاکانی تەکنیکی""",
-                ["heroManagement"] = """<span class="highlight">بە بەڕێوەبەرایەتی:</span> حاج سەمیر محەمەد کەرمانی و کوڕەکانی""",
-                ["heroAddress"] = """<span class="highlight">ناونیشان:</span> نەجەف ئەشرەف - گەڕەکی پیشەسازی - ناوەڕاستی شەقامی ئامادەیی پیشەسازی""",
-                ["navHome"] = "ماڵەوە",
-                ["navAbout"] = "دەربارە",
-                ["navServices"] = "خزمەتەکانمان",
-                ["navIndustrial"] = "خزمەتی پیشەسازی",
-                ["navExplorer"] = "گەڕان",
-                ["navGuide"] = "ڕێنمایی گشتگیر",
-                ["aboutTag"] = "دەربارە",
-                ["aboutTitle"] = """دەربارەی <span class="highlight">دامەزراوەکەمان</span>""",
-                ["aboutSub"] = "زیاتر لە ٤٠ ساڵ ئەزموون لە بواری پەمپ و نۆزل",
-                ["aboutMissionTitle"] = "ئەرکەکەمان",
-                ["aboutMissionDesc"] = "پێشکەشکردنی چارەسەری گاسکێتی کوالیتی باڵا کە متمانەی ماتۆر و کارایی لە سەرانسەری جیهاندا دابین بکات",
-                ["aboutVisionTitle"] = "بینینەکەمان",
-                ["aboutVisionDesc"] = "ببوین بە پێشەنگی جیهانی لە بەرهەمهێنانی گاسکێتی سەری سلندەر، و دانانی پێوەری کوالیتی و داهێنان",
-                ["aboutValuesTitle"] = "بەهاکانمان",
-                ["aboutValuesDesc"] = """<strong>کوالیتی</strong> — ئەندازیاری ورد. <strong>متمانە</strong> — پیشەگەران متمانەیان پێدەکەن. <strong>داهێنان</strong> — باشترکردنی بەردەوام.""",
-                ["aboutStoryTitle"] = "چیرۆکەکەمان",
-                ["aboutStoryDesc"] = "CONSAN® لە ساڵی 1980 دامەزراوە، و هەر لە پێشەنگی تەکنۆلۆژیای گاسکێتی ئوتومبێلدا بووە، خزمەت بە کڕیاران دەکات لە زیاتر لە ٥٠ وڵاتدا",
-                ["stat1Label"] = "ساڵانی بەرزایی",
-                ["stat2Label"] = "وڵاتی خزمەتکراو",
-                ["stat3Label"] = "بەرهەمی بەرهەمهێنراو",
-                ["stat4Label"] = "ڕازیکردنی کڕیار",
-                ["teamTitle"] = """تیپی <span class="highlight">شارەزای</span> ئێمە""",
-                ["teamSub"] = "پیشەگەرانی پشت بەرهەمە کوالیتییەکەمان",
-                ["team1Name"] = "ئەحمەد ییلماز",
-                ["team1Role"] = "بەڕێوەبەری گشتی و دامەزرێنەر",
-                ["team1Bio"] = "زیاتر لە ٤٠ ساڵ لە بواری گاسکێتی ئوتومبێل",
-                ["team2Name"] = "مەحەممەد دەمیر",
-                ["team2Role"] = "سەرپەرشتیاری ئەندازیاری",
-                ["team2Bio"] = "شارەزای بەرهەمهێنانی ورد",
-                ["team3Name"] = "ئایشە کایا",
-                ["team3Role"] = "بەڕێوەبەری کۆنتڕۆڵی کوالیتی",
-                ["team3Bio"] = "پشکنینی پێوەرەکانی کوالیتی بەرز",
-                ["team4Name"] = "موستەفا ئۆز",
-                ["team4Role"] = "بەڕێوەبەری بەرهەمهێنان",
-                ["team4Bio"] = "چاودێری بەرزترین ئاستی بەرهەمهێنان",
-                ["ctaBadge"] = "کوالیتی لە 1980",
-                ["ctaTitle"] = """گەشتی <span>سەرکەوتن</span> دەست پێ بکە""",
-                ["ctaDesc"] = "بەیەکەوە ئەو هەزاران کڕیارە ڕازیبون کە متمانە بە CONSAN® دەکەن بۆ چارەسەرەکانی کوالیتی باڵا",
-                ["feature1Title"] = "کوالیتی باڵا",
-                ["feature1Desc"] = "بەرزترین ستانداردەکان",
-                ["feature2Title"] = "متمانەی جیهانی",
-                ["feature2Desc"] = "متمانە لە زیاتر لە 50 وڵات",
-                ["feature3Title"] = "پشتیوانی پسپۆر",
-                ["feature3Desc"] = "پشتیوانی تەکنیکی تایبەت",
-                ["ctaBtn"] = "کوالیتی باڵا بەدەست بێنە",
-                ["featuredTag"] = "تایبەتمەندییەکان",
-                ["featuredTitle"] = """بۆچی <span class="highlight">ئێمە هەڵبژێرن</span>""",
-                ["featuredSub"] = "زیاتر لە ٤٠ ساڵ ئەزموون لە بواری پەمپ و نۆزل",
-                ["f1Title"] = "وردی ئەندازیاری",
-                ["f1Desc"] = "پێشکەوتووترین ئامێر و تەکنیک بۆ بەرزترین وردی",
-                ["f2Title"] = "ئەزموونی کۆکراوە",
-                ["f2Desc"] = "زیاتر لە ٤٠ ساڵ ئەزموون لە بواری پەمپ و نۆزل",
-                ["f3Title"] = "کوالیتی مەضمون",
-                ["f3Desc"] = "هەموو کارەکانمان مەضمونن بە بەرزترین ستانداردەکانی کوالیتی",
-                ["heritageTag"] = "کارامەیی و پیشەوەران",
-                ["heritageTitle"] = """پیشەوەری <span class="highlight">شارەزا</span>""",
-                ["heritageSub"] = "تیپێک لە شارەزایانی سیستەمی نۆزل و پەمپی دیزل",
-                ["h1Title"] = "ئەزموونی دەیەها ساڵ",
-                ["h1Desc"] = "زیاتر لە ٤٠ ساڵ ئەزموونی کرداری لە چاککردنەوە و فرۆشتنی پەمپ و نۆزل",
-                ["h2Title"] = "شارەزای سیستەمی نۆزل",
-                ["h2Desc"] = "شارەزا لە دیاریکردن و چاککردنەوەی هەموو جۆرەکانی سیستەمی نۆزلی دیزل و ئەلیکترۆنی",
-                ["h3Title"] = "تەکنیکی نوێ",
-                ["h3Desc"] = "بەکارهێنانی پێشکەوتووترین ئامێرەکانی پشکنینی ئەلیکترۆنی بۆ وردی",
-                ["h4Title"] = "ئەزموونی کۆکراوە",
-                ["h4Desc"] = "تێکەڵەیەکی بێهاوتا لە ئەزموونی نەریتی و تواناکانی نوێ لە کارگەیەکدا",
-                ["servicesTag"] = "خزمەتەکانمان",
-                ["servicesTitle"] = """ئێمە <span class="highlight">چی</span> پێشکەش دەکەین""",
-                ["servicesSub"] = "خزمەتە تایبەتەکان لە بواری پەمپ و نۆزل بە بەرزترین ستانداردەکانی کوالیتی",
-                ["sTag1"] = "تایبەت",
-                ["sTitle1"] = "چاککردنەوەی پەمپ",
-                ["sDesc1"] = "چاککردنەوەی هەموو جۆرەکانی پەمپی دیزل و بەنزین بە پێشکەوتووترین تەکنیکەکان",
-                ["sLink1"] = "زیاتر بزانە →",
-                ["sTag2"] = "وردی بەرز",
-                ["sTitle2"] = "نۆزل و ئینجێکتۆر",
-                ["sDesc2"] = "پشکنین و پاککردنەوە و ڕێکخستنی نۆزل بۆ باشترکردنی کارایی ماتۆر",
-                ["sLink2"] = "زیاتر بزانە →",
-                ["sTag3"] = "پیشەگەر",
-                ["sTitle3"] = "پشکنینی ئەلیکترۆنی",
-                ["sDesc3"] = "دیاریکردنی ورد بە بەکارهێنانی پێشکەوتووترین ئامێرەکانی پشکنین",
-                ["sLink3"] = "زیاتر بزانە →",
-                ["solTag"] = "چارەسەرەکانمان",
-                ["solTitle"] = """چارەسەری <span class="highlight">نوێ</span>""",
-                ["solSub"] = "چارەسەری گشتگیر بۆ هەموو پێویستییەکانتان",
-                ["sol1Title"] = "دیاریکردنی ورد",
-                ["sol1Desc"] = "پشکنینی گشتگیر بۆ سیستەمەکانی نۆزل",
-                ["sol2Title"] = "چاککردنەوەی پسپۆڕ",
-                ["sol2Desc"] = "چاککردنەوە و پاراستنی پەمپ",
-                ["sol3Title"] = "پارچەی ڕەسەن",
-                ["sol3Desc"] = "دابینکردنی پارچەی کوالیتی باڵا",
-                ["sol4Title"] = "ڕاوێژکاری تەکنیکی",
-                ["sol4Desc"] = "ئامۆژگاری شارەزا بۆ باشترکردنی کارایی",
-                ["wwTag"] = "ئێمە چی دەکەین",
-                ["wwTitle"] = """بوارەکانی <span class="highlight">کارامەیی</span>""",
-                ["wwSub"] = "کارامەیی گشتگیر لە بواری پەمپ و نۆزل",
-                ["ww1Title"] = "دیاریکردنی کێشە",
-                ["ww1Desc"] = "پشکنینی ورد بۆ دیاریکردنی کێشەکان",
-                ["ww2Title"] = "چاککردنەوەی گشتگیر",
-                ["ww2Desc"] = "چاککردنەوەی هەموو جۆرەکانی پەمپ",
-                ["ww3Title"] = "فرۆشتنی پارچە",
-                ["ww3Desc"] = "دابینکردنی پارچەی ڕەسەن و مەضمون",
-                ["ww4Title"] = "ڕێکخستنی کارایی",
-                ["ww4Desc"] = "باشترکردنی کارایی ماتۆر و زیادکردنی چوستی",
-                ["ww5Title"] = "ڕاوێژکاری تەکنیکی",
-                ["ww5Desc"] = "ئامۆژگاری و ڕێنمایی لە شارەزایانی بوار",
-                ["ww6Title"] = "خزمەتی دوای فرۆشتن",
-                ["ww6Desc"] = "پشتیوانی و شوێنکەوتنی بەردەوام بۆ کڕیاران",
-                ["footerText"] = "گاسکێتی کوالیتی باڵا و چارەسەری گاسکێتی ئوتومبێل لە 1980",
-                ["footerCopy"] = "© 2026 CONSAN®. هەموو مافێک پارێزراوە",
-                ["footerLinkedin"] = "لینکد ئین",
-                ["footerFacebook"] = "فەیسبوک",
-                ["footerInstagram"] = "ئینستاگرام",
-                ["contactTitle"] = "ژمارەکانی پەیوەندی",
-                ["contactLabel1"] = "ئەبوو مستەفا",
-                ["contactLabel2"] = "ئەبوو ڕەزا",
-                ["contactLabel3"] = "ئەبوو عەلی",
-                ["contactBadgeText"] = "پەیوەندیمان پێوەبکە",
-                ["contactHint"] = "کرتە لە ژمارە یان ئایکۆنی واتسئەپ بکە بۆ گفتوگۆ"
-            };
-
-            return data;
-        }
-
         private static IndustrialContentData DefaultIndustrialContent()
         {
             var data = new IndustrialContentData();
@@ -1760,7 +1375,7 @@ namespace ConsanWebApp
                 ["indHoursNote"] = "ساعات العمل: يومياً من السبت إلى الخميس، 8 صباحاً حتى 6 مساءً",
                 ["indHighlightsTag"] = "خدماتنا",
                 ["indHighlightsTitle"] = """ما نقدمه في <span class="highlight">ورشة الفرات الأوسط</span>""",
-                ["indHighlightsSub"] = "حلول صناعية متكاملة بخبرة تمتد لأكثر من 40 عاماً",
+                ["indHighlightsSub"] = "حلول صناعية متكاملة من ورشة تعمل منذ عام 1945",
                 ["indHl1Title"] = "استجابة سريعة",
                 ["indHl1Desc"] = "فريق جاهز لاستقبال طلباتكم ومعالجتها بأسرع وقت ممكن",
                 ["indHl2Title"] = "معدات متطورة",
@@ -1805,7 +1420,7 @@ namespace ConsanWebApp
                 ["indHoursNote"] = "Working Hours: Daily Saturday to Thursday, 8:00 AM - 6:00 PM",
                 ["indHighlightsTag"] = "Our Services",
                 ["indHighlightsTitle"] = """What We Offer at <span class="highlight">Middle Euphrates Workshop</span>""",
-                ["indHighlightsSub"] = "Comprehensive industrial solutions backed by over 40 years of experience",
+                ["indHighlightsSub"] = "Comprehensive industrial solutions from a workshop at work since 1945",
                 ["indHl1Title"] = "Fast Response",
                 ["indHl1Desc"] = "A ready team to receive and process your requests as quickly as possible",
                 ["indHl2Title"] = "Advanced Equipment",
@@ -1850,7 +1465,7 @@ namespace ConsanWebApp
                 ["indHoursNote"] = "کاتەکانی کار: ڕۆژانە لە شەممە تا پێنجشەممە، 8ی بەیانی - 6ی ئێوارە",
                 ["indHighlightsTag"] = "خزمەتەکانمان",
                 ["indHighlightsTitle"] = """ئێمە چی پێشکەش دەکەین لە <span class="highlight">کارگەی ناوەڕاستی فورات</span>""",
-                ["indHighlightsSub"] = "چارەسەری پیشەسازی گشتگیر بە ئەزموونی زیاتر لە 40 ساڵ",
+                ["indHighlightsSub"] = "چارەسەری پیشەسازی گشتگیر لە کارگەیەک کە لە 1945ـەوە کار دەکات",
                 ["indHl1Title"] = "وەڵامدانەوەی خێرا",
                 ["indHl1Desc"] = "تیپێکی ئامادە بۆ وەرگرتن و چارەسەرکردنی داواکارییەکانتان بە خێراترین کات",
                 ["indHl2Title"] = "ئامێری پێشکەوتوو",
@@ -1881,121 +1496,18 @@ namespace ConsanWebApp
             return data;
         }
 
-        private static List<MapPin> DefaultMapPins()
-        {
-            return new List<MapPin>
-            {
-                new MapPin
-                {
-                    NameAr = "قسم الاستقبال والإدارة",
-                    NameEn = "Reception & Management",
-                    NameKu = "بەشی وەرگرتن و بەڕێوەبردن",
-                    AddressAr = "النجف الأشرف - الحي الصناعي - منتصف شارع إعدادية الصناعة",
-                    AddressEn = "Najaf Al-Ashraf - Industrial District - Middle of Industrial High School Street",
-                    AddressKu = "نەجەف ئەشرەف - گەڕەکی پیشەسازی - ناوەڕاستی شەقامی ئامادەیی پیشەسازی",
-                    Phone = "07809744298",
-                    Latitude = 32.0000,
-                    Longitude = 44.3300,
-                    MapEmbedUrl = "",
-                    IsApproved = true
-                },
-                new MapPin
-                {
-                    NameAr = "قسم تصليح البمبات",
-                    NameEn = "Pump Repair Department",
-                    NameKu = "بەشی چاککردنەوەی پەمپ",
-                    AddressAr = "النجف الأشرف - الحي الصناعي - منتصف شارع إعدادية الصناعة",
-                    AddressEn = "Najaf Al-Ashraf - Industrial District - Middle of Industrial High School Street",
-                    AddressKu = "نەجەف ئەشرەف - گەڕەکی پیشەسازی - ناوەڕاستی شەقامی ئامادەیی پیشەسازی",
-                    Phone = "07805125702",
-                    Latitude = 32.0006,
-                    Longitude = 44.3308,
-                    MapEmbedUrl = "",
-                    IsApproved = true
-                },
-                new MapPin
-                {
-                    NameAr = "قسم النوزلات والحاقنات",
-                    NameEn = "Nozzles & Injectors Department",
-                    NameKu = "بەشی نۆزل و ئینجێکتۆر",
-                    AddressAr = "النجف الأشرف - الحي الصناعي - منتصف شارع إعدادية الصناعة",
-                    AddressEn = "Najaf Al-Ashraf - Industrial District - Middle of Industrial High School Street",
-                    AddressKu = "نەجەف ئەشرەف - گەڕەکی پیشەسازی - ناوەڕاستی شەقامی ئامادەیی پیشەسازی",
-                    Phone = "07801048314",
-                    Latitude = 31.9994,
-                    Longitude = 44.3294,
-                    MapEmbedUrl = "",
-                    IsApproved = true
-                }
-            };
-        }
-
-        private static List<ArchivalItem> DefaultArchivalAlbum()
-        {
-            return new List<ArchivalItem>
-            {
-                new ArchivalItem
-                {
-                    Year = "2026",
-                    ImageUrl = "https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=800&h=600&fit=crop",
-                    CaptionAr = "ورشة الفرات الأوسط - أحدث المعدات",
-                    CaptionEn = "Middle Euphrates Workshop - Latest Equipment",
-                    CaptionKu = "کارگەی ناوەڕاستی فورات - نوێترین ئامێرەکان"
-                },
-                new ArchivalItem
-                {
-                    Year = "2010",
-                    ImageUrl = "https://images.unsplash.com/photo-1581092335876-1b5a6b5b0b1f?w=800&h=600&fit=crop",
-                    CaptionAr = "توسعة الورشة وإدخال أجهزة الفحص الإلكترونية",
-                    CaptionEn = "Workshop expansion and introduction of electronic testing equipment",
-                    CaptionKu = "فراوانکردنی کارگە و ناساندنی ئامێرەکانی پشکنینی ئەلیکترۆنی"
-                },
-                new ArchivalItem
-                {
-                    Year = "1990",
-                    ImageUrl = "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=600&fit=crop",
-                    CaptionAr = "بدء التخصص في أنظمة حقن الديزل",
-                    CaptionEn = "Beginning of specialization in diesel injection systems",
-                    CaptionKu = "دەستپێکردنی پسپۆڕی لە سیستەمی نۆزلی دیزل"
-                },
-                new ArchivalItem
-                {
-                    Year = "1975",
-                    ImageUrl = "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&h=600&fit=crop",
-                    CaptionAr = "الورشة الأولى في الحي الصناعي",
-                    CaptionEn = "The first workshop in the Industrial District",
-                    CaptionKu = "یەکەم کارگە لە گەڕەکی پیشەسازی"
-                },
-                new ArchivalItem
-                {
-                    Year = "1950",
-                    ImageUrl = "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=600&fit=crop",
-                    CaptionAr = "بدايات العمل في صيانة المحركات",
-                    CaptionEn = "Beginnings of engine maintenance work",
-                    CaptionKu = "دەستپێکی کار لە پاراستنی ماتۆرەکان"
-                },
-                new ArchivalItem
-                {
-                    Year = "1900",
-                    ImageUrl = "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&h=600&fit=crop",
-                    CaptionAr = "الجذور التاريخية للحرفة",
-                    CaptionEn = "Historical roots of the craft",
-                    CaptionKu = "ڕەگەزە مێژووییەکانی پیشەکە"
-                }
-            };
-        }
-
         private static List<ExplorerCard> DefaultExplorerCards()
         {
             return new List<ExplorerCard>
             {
                 new ExplorerCard
                 {
+                    Id = 1,
                     Icon = "⚙️",
-                    ImageUrl = "https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=800&h=600&fit=crop",
-                    TitleAr = "ماكينات CNC المتطورة",
-                    TitleEn = "Advanced CNC Machines",
-                    TitleKu = "ئامێرەکانی CNC پێشکەوتوو",
+                    ImageUrl = "https://images.unsplash.com/photo-1727292486169-33eba0865c99?w=800&h=600&fit=crop",
+                    TitleAr = "ماكينات CNC المتطورة *",
+                    TitleEn = "Advanced CNC Machines *",
+                    TitleKu = "ئامێرەکانی CNC پێشکەوتوو *",
                     DescAr = "أنظمة خراطة وتفريز رقمية بدقة عالية لتصنيع القطع المعقدة والمخصصة بأعلى معايير الجودة العالمية.",
                     DescEn = "High-precision digital turning and milling systems for manufacturing complex and custom parts to the highest global quality standards.",
                     DescKu = "سیستەمی خەرادە و فریزکردنی دیجیتاڵی بە وردی بەرز بۆ دروستکردنی پارچە ئاڵۆز و تایبەتەکان بە بەرزترین ستانداردی جیهانی.",
@@ -2005,11 +1517,12 @@ namespace ConsanWebApp
                 },
                 new ExplorerCard
                 {
+                    Id = 2,
                     Icon = "🔬",
-                    ImageUrl = "https://images.unsplash.com/photo-1581092335876-1b5a6b5b0b1f?w=800&h=600&fit=crop",
-                    TitleAr = "أجهزة الفحص الإلكتروني",
-                    TitleEn = "Electronic Diagnostic Equipment",
-                    TitleKu = "ئامێرەکانی پشکنینی ئەلیکترۆنی",
+                    ImageUrl = "https://images.unsplash.com/photo-1759148413911-5ded7ed2ec06?w=800&h=600&fit=crop",
+                    TitleAr = "أجهزة الفحص الإلكتروني *",
+                    TitleEn = "Electronic Diagnostic Equipment *",
+                    TitleKu = "ئامێرەکانی پشکنینی ئەلیکترۆنی *",
                     DescAr = "معدات تشخيص متطورة لأنظمة حقن الديزل والبنزين، مع برمجيات تحليل بيانات دقيقة لضمان أعلى مستويات الأداء.",
                     DescEn = "Advanced diagnostic equipment for diesel and gasoline injection systems, with precise data analysis software for peak performance.",
                     DescKu = "ئامێری دیاریکردنی پێشکەوتوو بۆ سیستەمی نۆزلی دیزل و بەنزین، لەگەڵ سۆفتوێری شیکاری داتای ورد بۆ بەرزترین ئاستی کارایی.",
@@ -2019,11 +1532,12 @@ namespace ConsanWebApp
                 },
                 new ExplorerCard
                 {
+                    Id = 3,
                     Icon = "💉",
-                    ImageUrl = "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=600&fit=crop",
-                    TitleAr = "أنظمة حقن الوقود",
-                    TitleEn = "Fuel Injection Systems",
-                    TitleKu = "سیستەمی نۆزلی سووتەمەنی",
+                    ImageUrl = "https://images.unsplash.com/photo-1554231063-fef7ed86c0b7?w=800&h=600&fit=crop",
+                    TitleAr = "أنظمة حقن الوقود *",
+                    TitleEn = "Fuel Injection Systems *",
+                    TitleKu = "سیستەمی نۆزلی سووتەمەنی *",
                     DescAr = "خبرة متخصصة في صيانة وإصلاح جميع أنواع أنظمة الحقن الإلكترونية والميكانيكية لأحدث المحركات.",
                     DescEn = "Specialized expertise in the maintenance and repair of all types of electronic and mechanical injection systems for the latest engines.",
                     DescKu = "پسپۆڕی تایبەت لە پاراستن و چاککردنەوەی هەموو جۆرەکانی سیستەمی نۆزلی ئەلیکترۆنی و میکانیکی بۆ نوێترین ماتۆرەکان.",
@@ -2033,11 +1547,12 @@ namespace ConsanWebApp
                 },
                 new ExplorerCard
                 {
+                    Id = 4,
                     Icon = "🔩",
-                    ImageUrl = "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&h=600&fit=crop",
-                    TitleAr = "المخارط الثقيلة",
-                    TitleEn = "Heavy Lathes",
-                    TitleKu = "خەرادە قورسەکان",
+                    ImageUrl = "https://images.unsplash.com/photo-1579107821380-a2f5df32d67f?w=800&h=600&fit=crop",
+                    TitleAr = "المخارط الثقيلة *",
+                    TitleEn = "Heavy Lathes *",
+                    TitleKu = "خەرادە قورسەکان *",
                     DescAr = "مخارط صناعية ثقيلة قادرة على تشغيل القطع الكبيرة بدقة عالية، مثالية لتصنيع قطع الغيار الصناعية.",
                     DescEn = "Heavy industrial lathes capable of machining large parts with high precision, ideal for manufacturing industrial spare parts.",
                     DescKu = "خەرادەی پیشەسازی قورس کە دەتوانێت پارچە گەورەکان بە وردی بەرز بڕێژێت، گونجاو بۆ دروستکردنی پارچەی یەدەگی پیشەسازی.",
@@ -2047,11 +1562,12 @@ namespace ConsanWebApp
                 },
                 new ExplorerCard
                 {
+                    Id = 5,
                     Icon = "✅",
-                    ImageUrl = "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=600&fit=crop",
-                    TitleAr = "مختبر ضبط الجودة",
-                    TitleEn = "Quality Control Lab",
-                    TitleKu = "تاقیگەی کۆنترۆڵی کوالیتی",
+                    ImageUrl = "https://images.unsplash.com/photo-1666634157070-6fd830fb5672?w=800&h=600&fit=crop",
+                    TitleAr = "مختبر ضبط الجودة *",
+                    TitleEn = "Quality Control Lab *",
+                    TitleKu = "تاقیگەی کۆنترۆڵی کوالیتی *",
                     DescAr = "أجهزة قياس دقيقة واختبارات صارمة لضمان مطابقة كل قطعة للمواصفات الفنية المطلوبة.",
                     DescEn = "Precision measuring instruments and rigorous testing to ensure every part meets the required technical specifications.",
                     DescKu = "ئامێری پێوانەی ورد و تاقیکردنەوەی توند بۆ دڵنیابوون لەوەی هەر پارچەیەک بە تایبەتمەندییە تەکنیکییەکاندا تێدەپەڕێت.",
@@ -2061,11 +1577,12 @@ namespace ConsanWebApp
                 },
                 new ExplorerCard
                 {
+                    Id = 6,
                     Icon = "🛠️",
-                    ImageUrl = "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&h=600&fit=crop",
-                    TitleAr = "الورشة الحديثة",
-                    TitleEn = "Modern Workshop",
-                    TitleKu = "کارگەی نوێ",
+                    ImageUrl = "https://images.unsplash.com/photo-1514443031610-8c063c7a9822?w=800&h=600&fit=crop",
+                    TitleAr = "الورشة الحديثة *",
+                    TitleEn = "Modern Workshop *",
+                    TitleKu = "کارگەی نوێ *",
                     DescAr = "مساحة عمل مجهزة بأحدث الأدوات والمعدات، مصممة لتوفير بيئة عمل آمنة وفعالة للإنجاز السريع.",
                     DescEn = "A workspace equipped with the latest tools and equipment, designed to provide a safe and efficient work environment for rapid completion.",
                     DescKu = "شوێنی کار بە نوێترین ئامێر و کەرەستە ئامادەکراوە، دیزاین کراوە بۆ دابینکردنی ژینگەیەکی کارکردنی سەلامەت و کارا بۆ تەواوکردنی خێرا.",
@@ -2181,9 +1698,9 @@ namespace ConsanWebApp
             {
                 new GuideEquipment
                 {
-                    NameAr = "ماكينة اختبار النوزلات",
-                    NameEn = "Nozzle Test Machine",
-                    NameKu = "ئامێری تاقیکردنەوەی نۆزل",
+                    NameAr = "ماكينة اختبار النوزلات *",
+                    NameEn = "Nozzle Test Machine *",
+                    NameKu = "ئامێری تاقیکردنەوەی نۆزل *",
                     SpecAr = "ضغط حتى 3000 بار، تحكم رقمي",
                     SpecEn = "Pressure up to 3000 bar, digital control",
                     SpecKu = "پەستان تا 3000 بار، کۆنترۆڵی دیجیتاڵ",
@@ -2194,9 +1711,9 @@ namespace ConsanWebApp
                 },
                 new GuideEquipment
                 {
-                    NameAr = "مخرطة CNC",
-                    NameEn = "CNC Lathe",
-                    NameKu = "خەرادەی CNC",
+                    NameAr = "مخرطة CNC *",
+                    NameEn = "CNC Lathe *",
+                    NameKu = "خەرادەی CNC *",
                     SpecAr = "قطر 500 مم، طول 1500 مم، دقة 0.01 مم",
                     SpecEn = "Diameter 500 mm, length 1500 mm, precision 0.01 mm",
                     SpecKu = "تیرە 500 مم، درێژی 1500 مم، وردی 0.01 مم",
@@ -2207,9 +1724,9 @@ namespace ConsanWebApp
                 },
                 new GuideEquipment
                 {
-                    NameAr = "جهاز الفحص الإلكتروني",
-                    NameEn = "Electronic Diagnostic Device",
-                    NameKu = "ئامێری پشکنینی ئەلیکترۆنی",
+                    NameAr = "جهاز الفحص الإلكتروني *",
+                    NameEn = "Electronic Diagnostic Device *",
+                    NameKu = "ئامێری پشکنینی ئەلیکترۆنی *",
                     SpecAr = "متعدد القنوات، قراءة OBD-II",
                     SpecEn = "Multi-channel, OBD-II reading",
                     SpecKu = "فرە کەناڵ، خوێندنەوەی OBD-II",
@@ -2220,9 +1737,9 @@ namespace ConsanWebApp
                 },
                 new GuideEquipment
                 {
-                    NameAr = "مخرطة ثقيلة",
-                    NameEn = "Heavy Lathe",
-                    NameKu = "خەرادەی قورس",
+                    NameAr = "مخرطة ثقيلة *",
+                    NameEn = "Heavy Lathe *",
+                    NameKu = "خەرادەی قورس *",
                     SpecAr = "قطر 1000 مم، طول 3000 مم",
                     SpecEn = "Diameter 1000 mm, length 3000 mm",
                     SpecKu = "تیرە 1000 مم، درێژی 3000 مم",
@@ -2241,1692 +1758,11 @@ namespace ConsanWebApp
     // ================================  PAGES  ====================================
     // =============================================================================
 
-    public static class Pages
+    public static partial class Pages
     {
         // =========================================================
         // ============   SHARED / REUSABLE BUILDING BLOCKS   ========
         // =========================================================
-
-        public static string GetSharedStyles()
-        {
-            return """
-            :root {
-                --gold: #FFD700;
-                --gold-dark: #D4AF37;
-                --gold-hover: #C0951C;
-                --gold-glow: rgba(255, 215, 0, 0.3);
-                --pattern-svg-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cdefs%3E%3Cpattern id='p' width='400' height='400' patternUnits='userSpaceOnUse'%3E%3Cg stroke='%23999999' stroke-width='1.2' fill='none' stroke-linecap='round' stroke-linejoin='round' opacity='0.09'%3E%3Ccircle cx='45' cy='45' r='16'/%3E%3Ccircle cx='45' cy='45' r='6'/%3E%3Cpath d='M61 45h4M56.3 56.3l2.8 2.8M45 61v4M33.7 56.3l-2.8 2.8M29 45h-4M33.7 33.7l-2.8-2.8M45 29v-4M56.3 33.7l2.8-2.8'/%3E%3Cg transform='translate(140,55) rotate(45)'%3E%3Cpath d='M-23-5h46M-23 5h46'/%3E%3Cpath d='M-17-3a6 6 0 1 0 0 6M17-3a6 6 0 1 1 0 6'/%3E%3C/g%3E%3Cg transform='translate(230,50)'%3E%3Crect x='-6' y='-21' width='12' height='14' rx='1'/%3E%3Cpath d='M-7-7h14v-12H-7zM-4-19v30h8v-30M-4 11v10M4 11v10M-4 21l4 6 4-6'/%3E%3C/g%3E%3Ccircle cx='330' cy='55' r='15'/%3E%3Ccircle cx='330' cy='55' r='10'/%3E%3Cpath d='M322.9 62.1l-2.1 2.1M320 55h-3M322.9 47.9l-2.1-2.1M330 45v-3M337.1 47.9l2.1-2.1M340 55h3M337.1 62.1l2.1 2.1M330 55l7.3-5.3'/%3E%3Ccircle cx='330' cy='55' r='1.6' fill='currentColor'/%3E%3Cg transform='translate(60,140)'%3E%3Crect x='-6' y='-20' width='12' height='20' rx='2'/%3E%3Cpath d='M-6 0h12V-8H-6zM-4-8v14l-2.5 14M4-8v14l-2.5 14'/%3E%3C/g%3E%3Ccircle cx='180' cy='150' r='12'/%3E%3Ccircle cx='180' cy='150' r='4'/%3E%3Cpath d='M192 150h4M187.5 159.4l2.5 3.1M177.3 161.7l-.9 3.9M169.2 155.2l-3.6 1.7M169.2 144.8l-3.6-1.7M177.3 138.3l-.9-3.9M187.5 140.6l2.5-3.1'/%3E%3Ccircle cx='280' cy='150' r='13'/%3E%3Ccircle cx='280' cy='150' r='8'/%3E%3Cpath d='M274.3 155.7l-2.1 2.1M272 150h-3M274.3 144.3l-2.1-2.1M280 142v-3M285.7 144.3l2.1-2.1M288 150h3M285.7 155.7l2.1 2.1M280 150l5.7-4.1'/%3E%3Ccircle cx='280' cy='150' r='1.6' fill='currentColor'/%3E%3Cg transform='translate(370,150) rotate(45)'%3E%3Cpath d='M-20-5h40M-20 5h40'/%3E%3Cpath d='M-14-3a6 6 0 1 0 0 6M14-3a6 6 0 1 1 0 6'/%3E%3C/g%3E%3Cg transform='translate(30,250)'%3E%3Crect x='-6' y='-18' width='12' height='14' rx='1'/%3E%3Cpath d='M-7-4h14v-12H-7zM-4-16v24h8v-24M-4 8v10M4 8v10M-4 18l4 6 4-6'/%3E%3C/g%3E%3Ccircle cx='130' cy='250' r='16'/%3E%3Ccircle cx='130' cy='250' r='6'/%3E%3Cpath d='M146 250h4M141.3 261.3l2.8 2.8M130 266v4M118.7 261.3l-2.8 2.8M114 250h-4M118.7 238.7l-2.8-2.8M130 234v-4M141.3 238.7l2.8-2.8'/%3E%3Cg transform='translate(230,255)'%3E%3Crect x='-6' y='-17' width='12' height='20' rx='2'/%3E%3Cpath d='M-6 3h12V-5H-6zM-4-5v8l-2.5 14M4-5v8l-2.5 14'/%3E%3C/g%3E%3Ccircle cx='330' cy='250' r='15'/%3E%3Ccircle cx='330' cy='250' r='10'/%3E%3Cpath d='M322.9 257.1l-2.1 2.1M320 250h-3M322.9 242.9l-2.1-2.1M330 240v-3M337.1 242.9l2.1-2.1M340 250h3M337.1 257.1l2.1 2.1M330 250l7.3-5.3'/%3E%3Ccircle cx='330' cy='250' r='1.6' fill='currentColor'/%3E%3Cg transform='translate(60,340) rotate(45)'%3E%3Cpath d='M-21-5h42M-21 5h42'/%3E%3Cpath d='M-15-3a6 6 0 1 0 0 6M15-3a6 6 0 1 1 0 6'/%3E%3C/g%3E%3Ccircle cx='180' cy='350' r='13'/%3E%3Ccircle cx='180' cy='350' r='5'/%3E%3Cpath d='M193 350h4M189.2 359.2l2.8 2.8M180 363v4M170.8 359.2l-2.8 2.8M167 350h-4M170.8 340.8l-2.8-2.8M180 337v-4M189.2 340.8l2.8-2.8'/%3E%3Cg transform='translate(280,345)'%3E%3Crect x='-6' y='-19' width='12' height='14' rx='1'/%3E%3Cpath d='M-7-5h14v-12H-7zM-4-17v26h8v-26M-4 9v10M4 9v10M-4 19l4 6 4-6'/%3E%3C/g%3E%3Cg transform='translate(370,350)'%3E%3Crect x='-6' y='-16' width='12' height='20' rx='2'/%3E%3Cpath d='M-6 4h12V-4H-6zM-4-4v6l-2.5 14M4-4v6l-2.5 14'/%3E%3C/g%3E%3C/g%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23p)'/%3E%3C/svg%3E");
-                --pattern-svg-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cdefs%3E%3Cpattern id='p' width='400' height='400' patternUnits='userSpaceOnUse'%3E%3Cg stroke='%23D4AF37' stroke-width='1.2' fill='none' stroke-linecap='round' stroke-linejoin='round' opacity='0.08'%3E%3Ccircle cx='45' cy='45' r='16'/%3E%3Ccircle cx='45' cy='45' r='6'/%3E%3Cpath d='M61 45h4M56.3 56.3l2.8 2.8M45 61v4M33.7 56.3l-2.8 2.8M29 45h-4M33.7 33.7l-2.8-2.8M45 29v-4M56.3 33.7l2.8-2.8'/%3E%3Cg transform='translate(140,55) rotate(45)'%3E%3Cpath d='M-23-5h46M-23 5h46'/%3E%3Cpath d='M-17-3a6 6 0 1 0 0 6M17-3a6 6 0 1 1 0 6'/%3E%3C/g%3E%3Cg transform='translate(230,50)'%3E%3Crect x='-6' y='-21' width='12' height='14' rx='1'/%3E%3Cpath d='M-7-7h14v-12H-7zM-4-19v30h8v-30M-4 11v10M4 11v10M-4 21l4 6 4-6'/%3E%3C/g%3E%3Ccircle cx='330' cy='55' r='15'/%3E%3Ccircle cx='330' cy='55' r='10'/%3E%3Cpath d='M322.9 62.1l-2.1 2.1M320 55h-3M322.9 47.9l-2.1-2.1M330 45v-3M337.1 47.9l2.1-2.1M340 55h3M337.1 62.1l2.1 2.1M330 55l7.3-5.3'/%3E%3Ccircle cx='330' cy='55' r='1.6' fill='currentColor'/%3E%3Cg transform='translate(60,140)'%3E%3Crect x='-6' y='-20' width='12' height='20' rx='2'/%3E%3Cpath d='M-6 0h12V-8H-6zM-4-8v14l-2.5 14M4-8v14l-2.5 14'/%3E%3C/g%3E%3Ccircle cx='180' cy='150' r='12'/%3E%3Ccircle cx='180' cy='150' r='4'/%3E%3Cpath d='M192 150h4M187.5 159.4l2.5 3.1M177.3 161.7l-.9 3.9M169.2 155.2l-3.6 1.7M169.2 144.8l-3.6-1.7M177.3 138.3l-.9-3.9M187.5 140.6l2.5-3.1'/%3E%3Ccircle cx='280' cy='150' r='13'/%3E%3Ccircle cx='280' cy='150' r='8'/%3E%3Cpath d='M274.3 155.7l-2.1 2.1M272 150h-3M274.3 144.3l-2.1-2.1M280 142v-3M285.7 144.3l2.1-2.1M288 150h3M285.7 155.7l2.1 2.1M280 150l5.7-4.1'/%3E%3Ccircle cx='280' cy='150' r='1.6' fill='currentColor'/%3E%3Cg transform='translate(370,150) rotate(45)'%3E%3Cpath d='M-20-5h40M-20 5h40'/%3E%3Cpath d='M-14-3a6 6 0 1 0 0 6M14-3a6 6 0 1 1 0 6'/%3E%3C/g%3E%3Cg transform='translate(30,250)'%3E%3Crect x='-6' y='-18' width='12' height='14' rx='1'/%3E%3Cpath d='M-7-4h14v-12H-7zM-4-16v24h8v-24M-4 8v10M4 8v10M-4 18l4 6 4-6'/%3E%3C/g%3E%3Ccircle cx='130' cy='250' r='16'/%3E%3Ccircle cx='130' cy='250' r='6'/%3E%3Cpath d='M146 250h4M141.3 261.3l2.8 2.8M130 266v4M118.7 261.3l-2.8 2.8M114 250h-4M118.7 238.7l-2.8-2.8M130 234v-4M141.3 238.7l2.8-2.8'/%3E%3Cg transform='translate(230,255)'%3E%3Crect x='-6' y='-17' width='12' height='20' rx='2'/%3E%3Cpath d='M-6 3h12V-5H-6zM-4-5v8l-2.5 14M4-5v8l-2.5 14'/%3E%3C/g%3E%3Ccircle cx='330' cy='250' r='15'/%3E%3Ccircle cx='330' cy='250' r='10'/%3E%3Cpath d='M322.9 257.1l-2.1 2.1M320 250h-3M322.9 242.9l-2.1-2.1M330 240v-3M337.1 242.9l2.1-2.1M340 250h3M337.1 257.1l2.1 2.1M330 250l7.3-5.3'/%3E%3Ccircle cx='330' cy='250' r='1.6' fill='currentColor'/%3E%3Cg transform='translate(60,340) rotate(45)'%3E%3Cpath d='M-21-5h42M-21 5h42'/%3E%3Cpath d='M-15-3a6 6 0 1 0 0 6M15-3a6 6 0 1 1 0 6'/%3E%3C/g%3E%3Ccircle cx='180' cy='350' r='13'/%3E%3Ccircle cx='180' cy='350' r='5'/%3E%3Cpath d='M193 350h4M189.2 359.2l2.8 2.8M180 363v4M170.8 359.2l-2.8 2.8M167 350h-4M170.8 340.8l-2.8-2.8M180 337v-4M189.2 340.8l2.8-2.8'/%3E%3Cg transform='translate(280,345)'%3E%3Crect x='-6' y='-19' width='12' height='14' rx='1'/%3E%3Cpath d='M-7-5h14v-12H-7zM-4-17v26h8v-26M-4 9v10M4 9v10M-4 19l4 6 4-6'/%3E%3C/g%3E%3Cg transform='translate(370,350)'%3E%3Crect x='-6' y='-16' width='12' height='20' rx='2'/%3E%3Cpath d='M-6 4h12V-4H-6zM-4-4v6l-2.5 14M4-4v6l-2.5 14'/%3E%3C/g%3E%3C/g%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23p)'/%3E%3C/svg%3E");
-                --pattern-svg: var(--pattern-svg-light);
-                --bg-primary: #F5F5F5;
-                --bg-secondary: #FFFFFF;
-                --bg-card: #FFFFFF;
-                --bg-glass: rgba(255, 255, 255, 0.8);
-                --text-primary: #1A1A1A;
-                --text-secondary: #555555;
-                --text-muted: #888888;
-                --border-gold: rgba(212, 175, 55, 0.25);
-                --shadow-gold: 0 8px 32px rgba(212, 175, 55, 0.12);
-                --nav-bg: rgba(255, 255, 255, 0.95);
-                --hero-overlay: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.85) 60%, rgba(255,255,255,0.95) 100%);
-                --cta-bg: #FFFFFF;
-                --cta-border: #D4AF37;
-                --footer-bg: #F8F8F8;
-                --contact-popup-bg: #FFFFFF;
-                --contact-item-bg: #F8F8F8;
-                --contact-item-border: #E8E8E8;
-                --phone-number-color: #333333;
-                --badge-bg: rgba(212, 175, 55, 0.12);
-                --badge-color: #D4AF37;
-                --feature-bg: rgba(212, 175, 55, 0.04);
-                --feature-hover: rgba(212, 175, 55, 0.08);
-                --what-item-bg: #FFFFFF;
-                --solution-bg: #FFFFFF;
-                --service-card-bg: #FFFFFF;
-                --service-card-text: #555555;
-                --service-tag-bg: rgba(212, 175, 55, 0.12);
-                --service-tag-color: #D4AF37;
-                --heritage-item-bg: #FFFFFF;
-                --wa-icon-color: #6b7280;
-                --wa-icon-hover: #45505c;
-                --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            }
-
-            [data-theme="dark"] {
-                --bg-primary: #0A0A0A;
-                --bg-secondary: #111111;
-                --bg-card: #1A1A1A;
-                --bg-glass: rgba(255, 255, 255, 0.03);
-                --text-primary: #FFFFFF;
-                --text-secondary: #BBBBBB;
-                --text-muted: #777777;
-                --border-gold: rgba(212, 175, 55, 0.2);
-                --shadow-gold: 0 8px 32px rgba(212, 175, 55, 0.06);
-                --nav-bg: rgba(10, 10, 10, 0.95);
-                --hero-overlay: linear-gradient(180deg, rgba(10,10,10,0.6) 0%, rgba(10,10,10,0.85) 60%, rgba(10,10,10,0.95) 100%);
-                --cta-bg: #1a1a1a;
-                --cta-border: #FFD700;
-                --footer-bg: #111111;
-                --contact-popup-bg: #1A1A1A;
-                --contact-item-bg: rgba(255,255,255,0.03);
-                --contact-item-border: rgba(212, 175, 55, 0.15);
-                --phone-number-color: #BBBBBB;
-                --badge-bg: rgba(212, 175, 55, 0.12);
-                --badge-color: #D4AF37;
-                --feature-bg: rgba(212, 175, 55, 0.03);
-                --feature-hover: rgba(212, 175, 55, 0.06);
-                --what-item-bg: #1A1A1A;
-                --solution-bg: #1A1A1A;
-                --service-card-bg: #1A1A1A;
-                --service-card-text: #BBBBBB;
-                --heritage-item-bg: #1A1A1A;
-                --wa-icon-color: #9c9284;
-                --wa-icon-hover: #c7bba7;
-                --pattern-svg: var(--pattern-svg-dark);
-            }
-
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            html { scroll-behavior: smooth; }
-            body {
-                font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-                background: var(--bg-primary);
-                color: var(--text-primary);
-                line-height: 1.6;
-                min-height: 100vh;
-                -webkit-font-smoothing: antialiased;
-                transition: background 0.4s ease, color 0.4s ease;
-                position: relative;
-            }
-
-            .pattern-bg {
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;
-                pointer-events: none;
-                background-image: var(--pattern-svg);
-                background-repeat: repeat;
-                background-size: 400px 400px;
-                transition: opacity 0.6s ease;
-            }
-
-            .navbar, .hero, section, footer, .floating-contact { position: relative; z-index: 1; }
-            ::selection { background: var(--gold); color: #000; }
-            .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; width: 100%; }
-            ::-webkit-scrollbar { width: 8px; }
-            ::-webkit-scrollbar-track { background: var(--bg-primary); }
-            ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
-
-            .section-tag {
-                display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 2px;
-                text-transform: uppercase; color: var(--badge-color); margin-bottom: 12px;
-                border: 1px solid var(--border-gold); padding: 4px 16px; border-radius: 50px;
-                background: var(--badge-bg); transition: var(--transition);
-            }
-            .section-title {
-                font-size: 2.8rem; font-weight: 800; line-height: 1.15; margin-bottom: 16px;
-                letter-spacing: -0.5px; color: var(--text-primary); transition: var(--transition);
-            }
-            .section-title .highlight { color: var(--gold-dark); }
-            .section-subtitle {
-                font-size: 1.1rem; color: var(--text-secondary); max-width: 600px;
-                margin: 0 auto 48px; line-height: 1.8; transition: var(--transition);
-            }
-
-            .btn-primary {
-                background: var(--gold-dark); color: #000; padding: 14px 36px; border: none;
-                border-radius: 50px; font-weight: 700; font-size: 0.95rem; cursor: pointer;
-                transition: var(--transition); text-decoration: none; display: inline-flex;
-                align-items: center; gap: 8px; font-family: inherit;
-            }
-            .btn-primary:hover { background: var(--gold-hover); transform: translateY(-2px); box-shadow: 0 8px 30px var(--gold-glow); }
-            .btn-secondary {
-                background: transparent; color: var(--text-primary); padding: 14px 36px;
-                border: 2px solid var(--gold-dark); border-radius: 50px; font-weight: 600;
-                font-size: 0.95rem; cursor: pointer; transition: var(--transition);
-                text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-family: inherit;
-            }
-            .btn-secondary:hover { background: var(--gold-dark); color: #000; transform: translateY(-2px); box-shadow: 0 8px 30px var(--gold-glow); }
-
-            /* ===== NAVBAR ===== */
-            .navbar {
-                position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0;
-                background-color: var(--nav-bg); background-image: var(--pattern-svg);
-                background-repeat: repeat; background-size: 400px 400px;
-                backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-                border-bottom: 1px solid var(--border-gold); transition: var(--transition);
-            }
-            .navbar.scrolled { box-shadow: 0 4px 30px rgba(0,0,0,0.15); }
-            .nav-container { display: flex; justify-content: space-between; align-items: center; }
-            .nav-brand .brand-link { text-decoration: none; display: flex; align-items: center; gap: 10px; }
-            .nav-brand .brand-icon { width: 42px; height: 42px; flex-shrink: 0; transition: var(--transition); }
-            .nav-brand .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
-            .nav-brand .brand-name { font-size: 1.25rem; font-weight: 900; color: var(--text-primary); transition: var(--transition); }
-            .nav-brand .brand-name span { color: var(--gold-dark); }
-            .nav-brand .brand-tagline { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; transition: var(--transition); }
-            .nav-menu { display: flex; list-style: none; gap: 1.5rem; align-items: center; }
-            .nav-link {
-                color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.88rem;
-                transition: var(--transition); padding: 6px 0; position: relative; white-space: nowrap;
-            }
-            .nav-link::after {
-                content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px;
-                background: var(--gold-dark); transition: var(--transition);
-            }
-            .nav-link:hover { color: var(--text-primary); }
-            .nav-link:hover::after { width: 100%; }
-            .nav-controls { display: flex; align-items: center; gap: 12px; }
-
-            .lang-globe-wrapper { position: relative; }
-            .globe-btn {
-                display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
-                border-radius: 50%; background: var(--bg-glass); border: 1px solid var(--border-gold);
-                color: var(--gold-dark); cursor: pointer; transition: var(--transition); padding: 0;
-            }
-            .globe-btn:hover { border-color: var(--gold-dark); background: var(--badge-bg); transform: scale(1.05); }
-            .globe-btn .globe-icon { width: 20px; height: 20px; }
-            .lang-dropdown {
-                position: absolute; top: calc(100% + 10px); right: 0; min-width: 160px;
-                background: var(--contact-popup-bg); background-image: var(--pattern-svg);
-                background-repeat: repeat; background-size: 400px 400px;
-                border: 1px solid var(--border-gold); border-radius: 14px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.2); padding: 8px; z-index: 1100;
-                opacity: 1; transform: translateY(0); transition: var(--transition);
-            }
-            .lang-dropdown.closed { opacity: 0; pointer-events: none; transform: translateY(-8px); }
-            html[dir="ltr"] .lang-dropdown { right: auto; left: 0; }
-            .lang-option {
-                display: flex; align-items: center; width: 100%; text-align: right; padding: 10px 14px;
-                border: none; border-radius: 8px; background: transparent; color: var(--text-secondary);
-                font-weight: 600; font-size: 0.88rem; font-family: inherit; cursor: pointer; transition: var(--transition);
-            }
-            html[dir="ltr"] .lang-option { text-align: left; }
-            .lang-option:hover { background: var(--badge-bg); color: var(--text-primary); }
-            .lang-option.active { background: var(--gold-dark); color: #000; }
-
-            .theme-toggle {
-                background: var(--bg-glass); border: 1px solid var(--border-gold); border-radius: 30px;
-                padding: 4px 6px; cursor: pointer; display: flex; align-items: center; gap: 4px;
-                transition: var(--transition); font-size: 1.1rem; line-height: 1;
-            }
-            .theme-toggle:hover { border-color: var(--gold-dark); background: var(--badge-bg); }
-            .theme-toggle .icon {
-                padding: 4px 6px; border-radius: 20px; transition: var(--transition);
-                display: flex; align-items: center; justify-content: center;
-            }
-            .theme-toggle .icon.active { background: var(--gold-dark); color: #000; }
-            .theme-toggle .icon:not(.active) { opacity: 0.4; }
-
-            .nav-toggle { display: none; flex-direction: column; background: none; border: none; cursor: pointer; padding: 4px; gap: 5px; }
-            .nav-toggle span { width: 28px; height: 2.5px; background: var(--text-primary); border-radius: 4px; transition: var(--transition); }
-            .nav-toggle.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
-            .nav-toggle.active span:nth-child(2) { opacity: 0; }
-            .nav-toggle.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
-
-            section { padding: 80px 0; transition: var(--transition); position: relative; z-index: 1; }
-            section .section-header { text-align: center; margin-bottom: 56px; }
-
-            /* ===== FOOTER ===== */
-            .footer {
-                background-color: var(--footer-bg); background-image: var(--pattern-svg);
-                background-repeat: repeat; background-size: 400px 400px;
-                padding: 40px 0 24px; border-top: 1px solid var(--border-gold); transition: var(--transition);
-            }
-            .footer-brand { text-align: center; margin-bottom: 24px; }
-            .footer-logo { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-            .footer-brand-icon { width: 40px; height: 40px; flex-shrink: 0; transition: var(--transition); }
-            .footer-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
-            .footer-brand-name { font-size: 1.25rem; font-weight: 900; color: var(--text-primary); transition: var(--transition); }
-            .footer-brand-name span { color: var(--gold-dark); }
-            .footer-brand-tagline { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; transition: var(--transition); }
-            .footer-brand p { color: var(--text-muted); font-size: 0.9rem; max-width: 500px; margin: 0 auto; transition: var(--transition); }
-            .footer-bottom {
-                border-top: 1px solid var(--border-gold); padding-top: 20px; display: flex;
-                justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
-            }
-            .footer-bottom p { color: var(--text-muted); font-size: 0.8rem; transition: var(--transition); }
-            .footer-social { display: flex; gap: 12px; }
-            .footer-social a {
-                color: var(--text-muted); text-decoration: none; font-size: 0.8rem; padding: 6px 16px;
-                border: 1px solid var(--border-gold); border-radius: 50px; transition: var(--transition);
-            }
-            .footer-social a:hover { color: var(--text-primary); border-color: var(--gold-dark); background: var(--badge-bg); }
-
-            /* ===== FLOATING CONTACT WIDGET ===== */
-            .floating-contact { position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
-            .contact-badge {
-                background: var(--gold-dark); color: #000; padding: 14px 28px; border-radius: 50px;
-                font-weight: 700; font-size: 0.9rem; cursor: pointer; border: none; transition: var(--transition);
-                font-family: inherit; box-shadow: 0 8px 32px var(--gold-glow);
-            }
-            .contact-badge:hover { transform: scale(1.05); box-shadow: 0 12px 48px var(--gold-glow); background: var(--gold-hover); }
-            .contact-popup {
-                background: var(--contact-popup-bg); border: 1px solid var(--border-gold); border-radius: 14px;
-                padding: 20px 18px; min-width: 260px; display: block; animation: fadeSlideUp 0.3s ease;
-                direction: rtl; position: relative; box-shadow: 0 18px 60px rgba(0,0,0,0.22); transition: var(--transition);
-            }
-            .contact-popup.closed { display: none; }
-            .contact-popup .close-btn {
-                position: absolute; top: 10px; right: 12px; background: transparent; border: none; cursor: pointer;
-                padding: 5px; display: flex; align-items: center; justify-content: center; transition: var(--transition);
-                border-radius: 50%; color: var(--text-secondary);
-            }
-            .contact-popup .close-btn:hover { background: var(--badge-bg); transform: rotate(90deg); color: var(--text-primary); }
-            .contact-popup .close-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; }
-            .contact-popup .popup-title {
-                color: var(--text-primary); font-size: 0.95rem; font-weight: 700; border-bottom: 1px solid var(--border-gold);
-                padding-bottom: 10px; margin-bottom: 12px; text-align: center; transition: var(--transition);
-            }
-            .contact-popup .phone-list { list-style: none; padding: 0; margin: 0; }
-            .contact-popup .phone-item {
-                display: flex; justify-content: space-between; align-items: center; gap: 14px;
-                padding: 14px 18px; margin-bottom: 8px; background: var(--contact-item-bg);
-                border-radius: 10px; border: 1px solid var(--contact-item-border); transition: var(--transition);
-                cursor: pointer;
-            }
-            .contact-popup .phone-item:last-child { margin-bottom: 0; }
-            .contact-popup .phone-item:hover, .contact-popup .phone-item:focus-visible {
-                border-color: var(--gold-dark); background: var(--feature-hover); outline: none;
-            }
-            .contact-popup .phone-item .label { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; transition: var(--transition); }
-            .contact-popup .phone-item .wrapper { display: flex; align-items: center; gap: 6px; }
-            .contact-popup .phone-item .number {
-                color: var(--phone-number-color); font-weight: 600; font-size: 0.95rem; transition: var(--transition);
-            }
-            .contact-popup .phone-item .wa-icon {
-                display: inline-flex; align-items: center; justify-content: center;
-                padding: 4px; border-radius: 50%; transition: var(--transition);
-            }
-            .contact-popup .phone-item .wa-icon svg { width: 18px; height: 18px; fill: var(--wa-icon-color); transition: var(--transition); }
-            .contact-popup .phone-item:hover .wa-icon svg, .contact-popup .phone-item:focus-visible .wa-icon svg { fill: var(--wa-icon-hover); }
-            .contact-popup.en { direction: ltr; }
-            .contact-popup.ku { direction: rtl; }
-
-            /* ===== SHARED FORM STYLES ===== */
-            .auth-section, .service-section {
-                padding: 140px 0 80px; min-height: 100vh;
-                background-color: var(--bg-primary); background-image: var(--pattern-svg);
-                background-repeat: repeat; background-size: 400px 400px; transition: var(--transition);
-            }
-            .auth-wrapper, .service-wrapper {
-                max-width: 480px; margin: 0 auto; background: var(--bg-card); border: 1px solid var(--border-gold);
-                border-radius: 20px; padding: 44px 40px; box-shadow: var(--shadow-gold); transition: var(--transition);
-            }
-            .service-wrapper { max-width: 560px; }
-            .auth-header, .service-header { text-align: center; margin-bottom: 28px; }
-            .auth-header h1 { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; transition: var(--transition); }
-            .auth-header p { font-size: 0.9rem; color: var(--text-muted); transition: var(--transition); }
-            .service-header .section-title { font-size: 1.9rem; margin-bottom: 8px; }
-            .service-header .section-subtitle { margin: 0 auto; font-size: 0.95rem; }
-            .auth-tabs {
-                display: flex; gap: 8px; margin-bottom: 26px; background: var(--feature-bg);
-                border-radius: 50px; padding: 4px; border: 1px solid var(--border-gold);
-            }
-            .auth-tab {
-                flex: 1; padding: 10px; border: none; background: transparent; border-radius: 50px;
-                font-weight: 700; font-size: 0.9rem; color: var(--text-secondary); cursor: pointer;
-                font-family: inherit; transition: var(--transition);
-            }
-            .auth-tab.active { background: var(--gold-dark); color: #000; }
-            .auth-form { display: none; flex-direction: column; gap: 18px; }
-            .auth-form.active { display: flex; }
-            .service-form { display: flex; flex-direction: column; gap: 18px; }
-            .form-group { display: flex; flex-direction: column; gap: 6px; }
-            .form-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); transition: var(--transition); }
-            .form-input {
-                padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-gold);
-                background: var(--bg-glass); color: var(--text-primary); font-size: 0.95rem;
-                font-family: inherit; width: 100%; transition: var(--transition);
-            }
-            .form-input:focus { outline: none; border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--gold-glow); }
-            .form-select { cursor: pointer; }
-            .form-textarea { resize: vertical; min-height: 110px; font-family: inherit; }
-            .form-submit-btn {
-                background: var(--gold-dark); color: #000; border: none; border-radius: 50px; padding: 13px;
-                font-weight: 700; font-size: 0.95rem; cursor: pointer; font-family: inherit;
-                transition: var(--transition); margin-top: 4px;
-            }
-            .form-submit-btn:hover { background: var(--gold-hover); transform: translateY(-1px); box-shadow: 0 8px 24px var(--gold-glow); }
-            .back-home-link {
-                display: block; text-align: center; margin-top: 22px; color: var(--text-muted);
-                font-size: 0.85rem; text-decoration: none; transition: var(--transition);
-            }
-            .back-home-link:hover { color: var(--gold-dark); text-decoration: underline; }
-
-            @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-
-            @media (max-width: 768px) {
-                .container { padding: 0 20px; }
-                .nav-toggle { display: flex; }
-                .nav-menu {
-                    display: none; flex-direction: column; width: 100%; padding: 20px 0 12px; gap: 12px;
-                    background: var(--bg-primary); border-top: 1px solid var(--border-gold); margin-top: 12px;
-                    align-items: flex-start; transition: var(--transition);
-                }
-                .nav-menu.active { display: flex; }
-                .nav-container { flex-wrap: wrap; }
-                .nav-link { width: 100%; padding: 8px 0; }
-                .nav-controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
-                .section-title { font-size: 2rem; }
-                .floating-contact { bottom: 16px; right: 16px; }
-                .contact-popup { min-width: 280px; padding: 24px 20px; }
-                .contact-popup .phone-item { flex-direction: column; align-items: flex-start; gap: 6px; }
-                .globe-btn { width: 36px; height: 36px; }
-                .lang-dropdown { min-width: 140px; }
-                .footer-bottom { flex-direction: column; text-align: center; }
-                .auth-wrapper, .service-wrapper { padding: 32px 24px; }
-                .auth-section, .service-section { padding: 120px 0 60px; }
-            }
-            @media (max-width: 480px) {
-                .section-title { font-size: 1.6rem; }
-                .btn-primary, .btn-secondary { font-size: 0.85rem; padding: 12px 24px; }
-                .theme-toggle .icon { padding: 2px 4px; font-size: 0.9rem; }
-                .nav-brand .brand-icon { width: 32px; height: 32px; }
-                .nav-brand .brand-name { font-size: 1rem; }
-                .nav-brand .brand-tagline { font-size: 0.55rem; }
-                .footer-brand-icon { width: 32px; height: 32px; }
-                .footer-brand-name { font-size: 1rem; }
-                .footer-brand-tagline { font-size: 0.55rem; }
-                .contact-popup { min-width: 240px; padding: 20px 16px; }
-                .auth-header h1 { font-size: 1.5rem; }
-                .auth-wrapper, .service-wrapper { padding: 28px 18px; }
-            }
-            """;
-        }
-
-        public static string GetBrandSvg()
-        {
-            return """
-            <svg class="brand-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <g fill="none" stroke="var(--gold-dark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="20" cy="25" r="13"/>
-                    <circle cx="20" cy="25" r="4.5"/>
-                    <path d="M33 25h4M29.19 34.19l2.83 2.83M20 38v4M10.81 34.19l-2.83 2.83M7 25h-4M10.81 15.81l-2.83-2.83M20 12v-4M29.19 15.81l2.83-2.83"/>
-                </g>
-                <g transform="translate(29,6) rotate(8)">
-                    <rect x="-3" y="0" width="6" height="13" rx="1.4" fill="var(--text-primary)" stroke="var(--gold-dark)" stroke-width="1"/>
-                    <path d="M-3 13h6l-3 7z" fill="var(--gold-dark)" stroke="var(--gold-dark)" stroke-width="1" stroke-linejoin="round"/>
-                    <path d="M0 22v5" stroke="var(--gold-dark)" stroke-width="1.4" stroke-dasharray="1.6 1.8" stroke-linecap="round"/>
-                </g>
-            </svg>
-            """;
-        }
-
-        public static string GetNavbarHtml()
-        {
-            return $$"""
-            <nav class="navbar" id="navbar">
-                <div class="container nav-container">
-                    <div class="nav-brand">
-                        <a href="/" class="brand-link">
-                            {{GetBrandSvg()}}
-                            <span class="brand-text">
-                                <span class="brand-name">الفرات <span>الأوسط</span></span>
-                                <span class="brand-tagline">لصيانة البمبات والنوزلات</span>
-                            </span>
-                        </a>
-                    </div>
-                    <ul class="nav-menu" id="navMenu">
-                        <li><a class="nav-link" id="navHome" href="/">الرئيسية</a></li>
-                        <li><a class="nav-link" id="navAbout" href="/#about">من نحن</a></li>
-                        <li><a class="nav-link" id="navServices" href="/#services">خدماتنا</a></li>
-                        <li><a class="nav-link" id="navIndustrial" href="/industrial-services">خدمات صناعية</a></li>
-                        <li><a class="nav-link" id="navExplorer" href="/explorer">المستكشف</a></li>
-                        <li><a class="nav-link" id="navGuide" href="/guide">الدليل الشامل</a></li>
-                        <li>
-                            <div class="nav-controls">
-                                <div class="lang-globe-wrapper" id="langGlobeWrapper">
-                                    <button class="globe-btn" onclick="toggleLangDropdown(event)" id="globeBtn" aria-label="Change language" aria-haspopup="true" aria-expanded="false">
-                                        <svg class="globe-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                                            <ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                                            <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.6"/>
-                                            <path d="M4.5 7h15M4.5 17h15" fill="none" stroke="currentColor" stroke-width="1.4"/>
-                                        </svg>
-                                    </button>
-                                    <div class="lang-dropdown closed" id="langDropdown" role="menu">
-                                        <button class="lang-option active" onclick="switchLanguage('ar')" id="langOptAr" data-lang="ar" role="menuitem">العربية</button>
-                                        <button class="lang-option" onclick="switchLanguage('en')" id="langOptEn" data-lang="en" role="menuitem">English</button>
-                                        <button class="lang-option" onclick="switchLanguage('ku')" id="langOptKu" data-lang="ku" role="menuitem">كوردی</button>
-                                    </div>
-                                </div>
-                                <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle" aria-label="Toggle theme">
-                                    <span class="icon active" id="lightIcon">☀️</span>
-                                    <span class="icon" id="darkIcon">🌙</span>
-                                </button>
-                            </div>
-                        </li>
-                    </ul>
-                    <button class="nav-toggle" onclick="toggleMenu()" aria-label="Toggle navigation">
-                        <span></span><span></span><span></span>
-                    </button>
-                </div>
-            </nav>
-            """;
-        }
-
-        public static string GetFooterHtml()
-        {
-            return $$"""
-            <footer class="footer">
-                <div class="container">
-                    <div class="footer-brand">
-                        <div class="footer-logo">
-                            {{GetBrandSvg().Replace("brand-icon", "footer-brand-icon")}}
-                            <span class="footer-brand-text">
-                                <span class="footer-brand-name">الفرات <span>الأوسط</span></span>
-                                <span class="footer-brand-tagline">لصيانة البمبات والنوزلات</span>
-                            </span>
-                        </div>
-                        <p id="footerText">جوانات عالية الجودة وحلول إحكام للسيارات منذ 1980</p>
-                    </div>
-                    <div class="footer-bottom">
-                        <p id="footerCopy">© 2026 CONSAN®. جميع الحقوق محفوظة</p>
-                        <div class="footer-social">
-                            <a href="#" id="footerLinkedin">لينكد إن</a>
-                            <a href="#" id="footerFacebook">فيسبوك</a>
-                            <a href="#" id="footerInstagram">إنستغرام</a>
-                        </div>
-                    </div>
-                </div>
-            </footer>
-            """;
-        }
-
-        public static string GetContactWidgetHtml()
-        {
-            string waSvg = """<svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>""";
-
-            (string label, string number)[] contacts =
-            {
-                ("contactLabel1", "9647809744298"),
-                ("contactLabel2", "9647805125702"),
-                ("contactLabel3", "9647801048314")
-            };
-
-            var sb = new StringBuilder();
-            sb.Append("""<div class="floating-contact"><div class="contact-popup" id="contactPopup"><button class="close-btn" onclick="toggleContact()" aria-label="Close"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button><div class="popup-title" id="contactTitle">أرقام التواصل</div><ul class="phone-list">""");
-
-            string[] localNumbers = { "07809744298", "07805125702", "07801048314" };
-            string[] names = { "ابو مصطفى", "ابو رضا", "ابو علي" };
-
-            for (int i = 0; i < contacts.Length; i++)
-            {
-                string full = contacts[i].number;
-                string local = localNumbers[i];
-                string name = names[i];
-
-                sb.Append($$"""
-                <li class="phone-item" onclick="openWhatsApp('{{full}}')" role="button" tabindex="0" style="cursor:pointer;" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWhatsApp('{{full}}');}">
-                    <span class="label" id="{{contacts[i].label}}">{{name}}</span>
-                    <span class="wrapper">
-                        <span class="number">{{local}}</span>
-                        <span class="wa-icon" aria-label="WhatsApp">
-                            {{waSvg}}
-                        </span>
-                    </span>
-                </li>
-                """);
-            }
-
-            sb.Append("""</ul></div><div class="contact-badge" onclick="toggleContact()"><span id="contactBadgeText">تواصل معنا</span></div></div>""");
-            return sb.ToString();
-        }
-
-        public static string GetCoreNavScript()
-        {
-            return """
-            var navbarEl = document.getElementById('navbar');
-            if (navbarEl) {
-                window.addEventListener('scroll', function() { navbarEl.classList.toggle('scrolled', window.scrollY > 50); });
-            }
-
-            function toggleMenu() {
-                document.getElementById('navMenu').classList.toggle('active');
-                document.querySelector('.nav-toggle').classList.toggle('active');
-            }
-
-            document.addEventListener('click', function(event) {
-                var menu = document.getElementById('navMenu');
-                var toggle = document.querySelector('.nav-toggle');
-                if (toggle && menu && !toggle.contains(event.target) && !menu.contains(event.target)) {
-                    toggle.classList.remove('active');
-                    menu.classList.remove('active');
-                }
-            });
-
-            function toggleTheme() {
-                var body = document.body;
-                var lightIcon = document.getElementById('lightIcon');
-                var darkIcon = document.getElementById('darkIcon');
-                var isLight = body.getAttribute('data-theme') === 'light';
-                if (isLight) {
-                    body.setAttribute('data-theme', 'dark');
-                    lightIcon.classList.remove('active');
-                    darkIcon.classList.add('active');
-                } else {
-                    body.setAttribute('data-theme', 'light');
-                    lightIcon.classList.add('active');
-                    darkIcon.classList.remove('active');
-                }
-            }
-
-            function toggleLangDropdown(e) {
-                e.stopPropagation();
-                var dropdown = document.getElementById('langDropdown');
-                var btn = document.getElementById('globeBtn');
-                var wasClosed = dropdown.classList.contains('closed');
-                dropdown.classList.toggle('closed');
-                btn.setAttribute('aria-expanded', wasClosed ? 'true' : 'false');
-            }
-
-            document.addEventListener('click', function(event) {
-                var dropdown = document.getElementById('langDropdown');
-                var wrapper = document.getElementById('langGlobeWrapper');
-                if (dropdown && !dropdown.classList.contains('closed')) {
-                    if (!wrapper.contains(event.target)) {
-                        dropdown.classList.add('closed');
-                        document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
-                    }
-                }
-            });
-
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape') {
-                    var dropdown = document.getElementById('langDropdown');
-                    if (dropdown && !dropdown.classList.contains('closed')) {
-                        dropdown.classList.add('closed');
-                        document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
-                    }
-                }
-            });
-
-            document.querySelectorAll('a[href*="#"]').forEach(function(anchor) {
-                anchor.addEventListener('click', function(e) {
-                    var href = this.getAttribute('href');
-                    var hashIndex = href.indexOf('#');
-                    if (hashIndex === -1) return;
-                    var target = document.querySelector(href.substring(hashIndex));
-                    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-                });
-            });
-
-            window.toggleMenu = toggleMenu;
-            window.toggleTheme = toggleTheme;
-            window.toggleLangDropdown = toggleLangDropdown;
-            """;
-        }
-
-        public static string GetContactWidgetScript()
-        {
-            return """
-            function toggleContact() {
-                document.getElementById('contactPopup').classList.toggle('closed');
-            }
-
-            function openWhatsApp(number) {
-                window.open('https://wa.me/' + number, '_blank');
-            }
-
-            document.addEventListener('click', function(event) {
-                var popup = document.getElementById('contactPopup');
-                var badge = document.querySelector('.contact-badge');
-                if (popup && !popup.classList.contains('closed')) {
-                    if (!popup.contains(event.target) && badge && !badge.contains(event.target)) {
-                        popup.classList.add('closed');
-                    }
-                }
-            });
-
-            window.toggleContact = toggleContact;
-            window.openWhatsApp = openWhatsApp;
-            """;
-        }
-
-        // =========================================================
-        // ========================   PAGES   =========================
-        // =========================================================
-
-        public static string GetHomePage()
-        {
-            string css = GetSharedStyles() + """
-
-            /* ===== HOME-ONLY STYLES ===== */
-            .hero {
-                position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden;
-                background-color: var(--bg-primary); background-image: var(--pattern-svg);
-                background-repeat: repeat; background-size: 400px 400px; padding-top: 80px; transition: var(--transition);
-            }
-            .hero-slider { position: absolute; inset: 0; z-index: 0; }
-            .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.5s ease-in-out; }
-            .hero-slide.active { opacity: 1; }
-            .hero-slide img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.3) saturate(0.6); }
-            [data-theme="light"] .hero-slide img { filter: brightness(0.85) saturate(0.9); }
-            .hero-overlay { position: relative; z-index: 1; width: 100%; padding: 60px 0 40px; background: var(--hero-overlay); transition: var(--transition); }
-            .hero-content { max-width: 900px; margin: 0 auto; text-align: center; padding: 20px; }
-            .hero-content .hero-title { font-size: 4.5rem; font-weight: 900; line-height: 1.1; margin-bottom: 20px; letter-spacing: -1px; color: var(--text-primary); transition: var(--transition); }
-            .hero-content .hero-title .highlight { color: var(--gold-dark); }
-            .hero-content .hero-subtitle { font-size: 1.3rem; color: var(--text-secondary); max-width: 700px; margin: 0 auto 12px; line-height: 1.8; font-weight: 300; transition: var(--transition); }
-            .hero-content .hero-subtitle .highlight { color: var(--gold-dark); font-weight: 500; }
-            .hero-content .hero-management { font-size: 1.05rem; color: var(--text-muted); margin-bottom: 8px; transition: var(--transition); }
-            .hero-content .hero-management .highlight { color: var(--gold-dark); }
-            .hero-content .hero-address { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 36px; padding-top: 16px; border-top: 1px solid var(--border-gold); display: inline-block; transition: var(--transition); }
-            .hero-content .hero-address .highlight { color: var(--gold-dark); }
-            .hero-actions { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-bottom: 40px; }
-            .slider-controls { display: flex; align-items: center; justify-content: center; gap: 24px; position: relative; z-index: 2; }
-            .slider-arrow {
-                background: var(--bg-glass); border: 1px solid var(--border-gold); color: var(--gold-dark); width: 44px; height: 44px;
-                border-radius: 50%; cursor: pointer; transition: var(--transition); font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
-            }
-            .slider-arrow:hover { background: var(--gold-dark); color: #000; transform: scale(1.05); }
-            .slider-dots { display: flex; gap: 12px; }
-            .slider-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bg-glass); border: 1px solid var(--border-gold); cursor: pointer; transition: var(--transition); }
-            .slider-dot.active { background: var(--gold-dark); border-color: var(--gold-dark); transform: scale(1.3); box-shadow: 0 0 24px var(--gold-glow); }
-            .slider-dot:hover { background: var(--gold-dark); opacity: 0.6; }
-
-            .hero-content .lang-ar { display: block; }
-            .hero-content .lang-en { display: none; }
-            .hero-content .lang-ku { display: none; }
-            .hero-content.show-en .lang-ar { display: none; }
-            .hero-content.show-en .lang-en { display: block; }
-            .hero-content.show-ku .lang-ar { display: none; }
-            .hero-content.show-ku .lang-en { display: none; }
-            .hero-content.show-ku .lang-ku { display: block; }
-
-            /* =========================================================================
-               ===== ARCHIVAL ALBUM (Premium Vintage Timeline) — REDESIGNED =====
-               ===== Perfect 2-Column CSS Grid Alignment (No Absolute Positioning) ====
-               ========================================================================= */
-            .archival-section {
-                background-color: var(--bg-primary); background-image: var(--pattern-svg);
-                background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); overflow: hidden;
-            }
-            .archival-timeline {
-                position: relative; max-width: 1100px; margin: 0 auto; padding: 20px 0;
-            }
-            /* Vertical center line at exact 50% */
-            .archival-timeline::before {
-                content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 3px;
-                background: linear-gradient(to bottom, transparent, var(--gold-dark), var(--gold-dark), transparent);
-                transform: translateX(-50%); border-radius: 3px; opacity: 0.35;
-                z-index: 0;
-            }
-
-            /* Each archival item is a strict 2-column grid */
-            .archival-item {
-                position: relative;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                align-items: center;
-                column-gap: 60px;
-                margin-bottom: 70px;
-                opacity: 0;
-                transform: translateY(40px);
-                transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-                min-height: 140px;
-            }
-            .archival-item.visible { opacity: 1; transform: translateY(0); }
-            .archival-item:last-child { margin-bottom: 0; }
-
-            /* The central node dot on the timeline */
-            .archival-item .timeline-node {
-                position: absolute; top: 50%; left: 50%;
-                transform: translate(-50%, -50%);
-                width: 22px; height: 22px; border-radius: 50%;
-                background: var(--gold-dark);
-                border: 3px solid var(--bg-primary);
-                box-shadow: 0 0 0 3px var(--gold-dark), 0 0 20px var(--gold-glow);
-                z-index: 3; transition: var(--transition);
-            }
-            .archival-item .timeline-node:hover {
-                transform: translate(-50%, -50%) scale(1.3);
-                box-shadow: 0 0 0 3px var(--gold-dark), 0 0 40px var(--gold-glow);
-            }
-
-            /* ----- CARD SLOT (holds the card) ----- */
-            .archival-card-slot {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-            }
-
-            /* ----- YEAR SLOT (holds the big year text) ----- */
-            .archival-year-slot {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                min-height: 100%;
-            }
-            .archival-year-slot .big-year {
-                font-size: clamp(3rem, 5vw, 4.5rem);
-                font-weight: 800;
-                line-height: 1;
-                color: var(--gold-dark);
-                opacity: 0.85;
-                letter-spacing: 4px;
-                direction: ltr;
-                text-align: center;
-                white-space: nowrap;
-                text-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(212,175,55,0.18);
-                transition: var(--transition);
-                user-select: none;
-                pointer-events: none;
-                font-variant-numeric: tabular-nums;
-            }
-            .archival-item:hover .archival-year-slot .big-year {
-                opacity: 1;
-                transform: scale(1.06);
-                text-shadow: 0 0 60px var(--gold-glow), 0 0 120px rgba(212,175,55,0.35);
-            }
-
-            /* Odd items: Card LEFT (column 1), Year RIGHT (column 2) */
-            .archival-item.archival-odd .archival-card-slot { grid-column: 1; }
-            .archival-item.archival-odd .archival-year-slot { grid-column: 2; }
-
-            /* Even items: Year LEFT (column 1), Card RIGHT (column 2) */
-            .archival-item.archival-even .archival-year-slot { grid-column: 1; }
-            .archival-item.archival-even .archival-card-slot { grid-column: 2; }
-
-            /* ----- The CARD itself ----- */
-            .archival-card {
-                background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 16px;
-                padding: 24px; transition: var(--transition); width: 100%;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            }
-            .archival-card:hover {
-                border-color: var(--gold-dark); transform: translateY(-4px);
-                box-shadow: 0 12px 40px rgba(212, 175, 55, 0.15);
-            }
-            .archival-card .archival-year-badge {
-                display: inline-block; background: var(--badge-bg); color: var(--gold-dark);
-                font-size: 1.1rem; font-weight: 900; padding: 4px 20px; border-radius: 50px;
-                border: 1px solid var(--border-gold); margin-bottom: 14px; letter-spacing: 1px;
-            }
-            .archival-card .archival-img-wrapper {
-                width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 14px;
-                border: 1px solid var(--border-gold); position: relative;
-                background: var(--feature-bg); aspect-ratio: 4/3;
-            }
-            .archival-card .archival-img-wrapper img {
-                width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease, filter 0.6s ease;
-                filter: sepia(0.15) contrast(1.05);
-            }
-            .archival-card:hover .archival-img-wrapper img {
-                transform: scale(1.05); filter: sepia(0) contrast(1.1);
-            }
-            .archival-card .archival-img-wrapper::after {
-                content: ''; position: absolute; inset: 0;
-                background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%);
-                pointer-events: none; transition: var(--transition);
-            }
-            .archival-card:hover .archival-img-wrapper::after { opacity: 0.3; }
-            .archival-card .archival-caption {
-                color: var(--text-secondary); font-size: 0.95rem; line-height: 1.7; transition: var(--transition);
-            }
-            .archival-card .archival-caption strong { color: var(--text-primary); }
-
-            /* ===== ARCHIVAL YEAR NAVIGATION ===== */
-            .archival-nav {
-                display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 50px;
-            }
-            .archival-nav-btn {
-                padding: 10px 24px; border-radius: 50px; border: 1px solid var(--border-gold);
-                background: var(--bg-card); color: var(--text-secondary); font-weight: 700;
-                font-size: 0.9rem; cursor: pointer; font-family: inherit; transition: var(--transition);
-                letter-spacing: 0.5px;
-            }
-            .archival-nav-btn:hover {
-                border-color: var(--gold-dark); color: var(--gold-dark);
-                transform: translateY(-2px); box-shadow: 0 4px 16px var(--gold-glow);
-            }
-            .archival-nav-btn.active {
-                background: var(--gold-dark); color: #000; border-color: var(--gold-dark);
-                box-shadow: 0 4px 20px var(--gold-glow);
-            }
-
-            /* ===== RESPONSIVE: STACK ON SMALL SCREENS ===== */
-            @media (max-width: 1024px) {
-                .archival-timeline::before { display: none; }
-                .archival-item {
-                    grid-template-columns: 1fr;
-                    column-gap: 0;
-                    row-gap: 20px;
-                    margin-bottom: 44px;
-                    min-height: auto;
-                    text-align: center;
-                }
-                .archival-item .timeline-node { display: none; }
-                .archival-item .big-year {
-                    font-size: clamp(2.5rem, 8vw, 3.5rem);
-                    opacity: 0.75;
-                }
-                /* Force year ABOVE card on mobile, regardless of odd/even */
-                .archival-item.archival-odd .archival-year-slot,
-                .archival-item.archival-even .archival-year-slot {
-                    grid-column: 1;
-                    grid-row: 1;
-                }
-                .archival-item.archival-odd .archival-card-slot,
-                .archival-item.archival-even .archival-card-slot {
-                    grid-column: 1;
-                    grid-row: 2;
-                }
-                .archival-card { padding: 20px; }
-                .archival-card .archival-year-badge { font-size: 0.95rem; padding: 3px 16px; }
-            }
-            @media (max-width: 768px) {
-                .archival-nav-btn { padding: 8px 16px; font-size: 0.8rem; }
-                .archival-card { padding: 18px; }
-                .archival-item .big-year { font-size: clamp(2.2rem, 10vw, 3rem); letter-spacing: 2px; }
-            }
-            @media (max-width: 480px) {
-                .archival-card { padding: 14px; }
-                .archival-item .big-year { font-size: 2.2rem; letter-spacing: 1px; }
-            }
-
-            .about-section { background-color: var(--bg-secondary); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); }
-            .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; }
-            .about-card { background: var(--bg-card); padding: 30px 35px; border-radius: 16px; border: 1px solid var(--border-gold); transition: var(--transition); }
-            .about-card:hover { border-color: var(--gold-dark); transform: translateY(-4px); box-shadow: var(--shadow-gold); }
-            .about-card h3 { color: var(--text-primary); font-size: 1.3rem; font-weight: 700; margin-bottom: 10px; transition: var(--transition); }
-            .about-card p { color: var(--text-secondary); font-size: 0.98rem; line-height: 1.7; transition: var(--transition); }
-            .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 40px 0; }
-            .stat-item { background: var(--bg-card); padding: 25px 20px; text-align: center; border-radius: 12px; border: 1px solid var(--border-gold); transition: var(--transition); }
-            .stat-item:hover { border-color: var(--gold-dark); transform: scale(1.02); }
-            .stat-number { font-size: 2.2rem; font-weight: 700; color: var(--gold-dark); transition: var(--transition); }
-            .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; transition: var(--transition); }
-            .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; margin-top: 10px; }
-            .team-member { background: var(--bg-card); border-radius: 16px; padding: 25px 20px; text-align: center; border: 1px solid var(--border-gold); transition: var(--transition); }
-            .team-member:hover { border-color: var(--gold-dark); transform: translateY(-6px); box-shadow: var(--shadow-gold); }
-            .team-member h4 { color: var(--text-primary); font-size: 1.1rem; font-weight: 700; transition: var(--transition); }
-            .team-member .role { color: var(--gold-dark); font-size: 0.85rem; font-weight: 600; }
-            .team-member .bio { color: var(--text-muted); font-size: 0.85rem; margin-top: 8px; transition: var(--transition); }
-
-            .section-cta {
-                background-color: var(--cta-bg); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px;
-                border-top: 1px solid var(--border-gold); border-bottom: 1px solid var(--border-gold); padding: 80px 0; position: relative; overflow: hidden; transition: var(--transition);
-            }
-            .section-cta::before { content: ''; position: absolute; top: -50%; right: -20%; width: 600px; height: 600px; background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%); border-radius: 50%; opacity: 0.1; }
-            .cta-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; text-align: center; }
-            .cta-content .badge { display: inline-block; background: var(--badge-bg); border: 1px solid var(--border-gold); padding: 6px 20px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; color: var(--badge-color); letter-spacing: 1px; margin-bottom: 20px; }
-            .cta-content h2 { font-size: 2.8rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary); transition: var(--transition); }
-            .cta-content h2 span { color: var(--gold-dark); }
-            .cta-content p { font-size: 1.1rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto 32px; line-height: 1.8; transition: var(--transition); }
-            .cta-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 36px; }
-            .cta-feature { background: var(--feature-bg); border: 1px solid var(--border-gold); padding: 20px; border-radius: 10px; text-align: center; transition: var(--transition); }
-            .cta-feature:hover { background: var(--feature-hover); border-color: var(--gold-dark); }
-            .cta-feature h4 { font-size: 0.95rem; font-weight: 700; color: var(--gold-dark); }
-            .cta-feature p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
-
-            .featured-section { background-color: var(--bg-secondary); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); }
-            .featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-            .featured-card { background: var(--bg-card); border: 1px solid var(--border-gold); border-radius: 16px; padding: 32px 28px; text-align: center; transition: var(--transition); }
-            .featured-card:hover { border-color: var(--gold-dark); transform: translateY(-6px); box-shadow: var(--shadow-gold); }
-            .featured-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); transition: var(--transition); }
-            .featured-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7; transition: var(--transition); }
-
-            .heritage-section { background-color: var(--bg-primary); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); }
-            .heritage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
-            .heritage-item { display: flex; gap: 18px; align-items: flex-start; padding: 24px 28px; background: var(--heritage-item-bg); border: 1px solid var(--border-gold); border-radius: 16px; transition: var(--transition); }
-            .heritage-item:hover { border-color: var(--gold-dark); transform: translateX(4px); box-shadow: var(--shadow-gold); }
-            .heritage-item .num { font-size: 2.5rem; font-weight: 900; color: var(--gold-dark); opacity: 0.3; min-width: 50px; line-height: 1; }
-            .heritage-item .content h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); transition: var(--transition); }
-            .heritage-item .content p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7; transition: var(--transition); }
-
-            .services-section { background-color: var(--bg-secondary); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); }
-            .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-            .service-card { background: var(--service-card-bg); border: 1px solid var(--border-gold); border-radius: 16px; padding: 32px 28px; text-align: center; transition: var(--transition); }
-            .service-card:hover { border-color: var(--gold-dark); transform: translateY(-6px); box-shadow: var(--shadow-gold); }
-            .service-card .tag { display: inline-block; background: var(--service-tag-bg); color: var(--service-tag-color); font-size: 0.65rem; font-weight: 700; padding: 3px 14px; border-radius: 50px; margin-bottom: 12px; letter-spacing: 0.5px; }
-            .service-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); transition: var(--transition); }
-            .service-card p { font-size: 0.9rem; color: var(--service-card-text); line-height: 1.7; margin-bottom: 16px; transition: var(--transition); }
-            .service-card .link { color: var(--gold-dark); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: var(--transition); }
-            .service-card .link:hover { color: var(--gold); }
-
-            .solutions-section { background-color: var(--bg-primary); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); }
-            .solutions-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-            .solution-card { background: var(--solution-bg); border: 1px solid var(--border-gold); border-radius: 16px; padding: 28px 20px; text-align: center; transition: var(--transition); }
-            .solution-card:hover { border-color: var(--gold-dark); transform: translateY(-4px); box-shadow: var(--shadow-gold); }
-            .solution-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); transition: var(--transition); }
-            .solution-card p { font-size: 0.85rem; color: var(--text-secondary); transition: var(--transition); }
-
-            .whatwedo-section { background-color: var(--bg-secondary); background-image: var(--pattern-svg); background-repeat: repeat; background-size: 400px 400px; transition: var(--transition); }
-            .whatwedo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-            .whatwedo-item { display: flex; gap: 16px; align-items: flex-start; padding: 22px 24px; background: var(--what-item-bg); border: 1px solid var(--border-gold); border-radius: 10px; transition: var(--transition); }
-            .whatwedo-item:hover { border-color: var(--gold-dark); transform: translateX(4px); box-shadow: var(--shadow-gold); }
-            .whatwedo-item .num { font-size: 1.8rem; font-weight: 900; color: var(--gold-dark); opacity: 0.25; min-width: 40px; line-height: 1; }
-            .whatwedo-item .content h4 { font-size: 1rem; font-weight: 700; margin-bottom: 2px; color: var(--text-primary); transition: var(--transition); }
-            .whatwedo-item .content p { font-size: 0.85rem; color: var(--text-secondary); transition: var(--transition); }
-
-            @media (max-width: 1024px) {
-                .featured-grid { grid-template-columns: repeat(2, 1fr); }
-                .solutions-grid { grid-template-columns: repeat(2, 1fr); }
-                .services-grid { grid-template-columns: repeat(2, 1fr); }
-                .whatwedo-grid { grid-template-columns: repeat(2, 1fr); }
-                .cta-features { grid-template-columns: repeat(3, 1fr); }
-                .heritage-grid { grid-template-columns: 1fr; }
-                .about-grid { grid-template-columns: 1fr; }
-                .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            }
-            @media (max-width: 768px) {
-                .hero-content .hero-title { font-size: 2.6rem; }
-                .hero-content .hero-subtitle { font-size: 1.05rem; }
-                .hero-content .hero-management { font-size: 0.9rem; }
-                .featured-grid { grid-template-columns: 1fr; }
-                .services-grid { grid-template-columns: 1fr; }
-                .solutions-grid { grid-template-columns: 1fr 1fr; }
-                .whatwedo-grid { grid-template-columns: 1fr; }
-                .cta-features { grid-template-columns: 1fr; }
-                .hero-actions { flex-direction: column; align-items: center; }
-                .hero-actions .btn-primary, .hero-actions .btn-secondary { width: 100%; justify-content: center; }
-                .slider-controls { gap: 16px; }
-                .slider-arrow { width: 36px; height: 36px; font-size: 0.9rem; }
-                .slider-dot { width: 8px; height: 8px; }
-                .cta-content h2 { font-size: 2rem; }
-                .stats-grid { grid-template-columns: 1fr 1fr; }
-                .team-grid { grid-template-columns: 1fr 1fr; }
-            }
-            @media (max-width: 480px) {
-                .hero-content .hero-title { font-size: 2rem; }
-                .hero-content .hero-subtitle { font-size: 0.9rem; }
-                .hero-content .hero-management { font-size: 0.8rem; }
-                .hero-content .hero-address { font-size: 0.8rem; }
-                .solutions-grid { grid-template-columns: 1fr; }
-                .stats-grid { grid-template-columns: 1fr; }
-                .team-grid { grid-template-columns: 1fr; }
-            }
-            """;
-
-            string body = $$"""
-            <body data-theme="light">
-                <div class="pattern-bg"></div>
-                {{GetNavbarHtml()}}
-
-                <section class="hero" id="hero">
-                    <div class="hero-slider">
-                        <div class="hero-slide active"><img id="heroImg0" src="https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=1920&h=1080&fit=crop" alt="Industrial Workshop" /></div>
-                        <div class="hero-slide"><img id="heroImg1" src="https://images.unsplash.com/photo-1581092335876-1b5a6b5b0b1f?w=1920&h=1080&fit=crop" alt="Precision Machinery" /></div>
-                        <div class="hero-slide"><img id="heroImg2" src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1920&h=1080&fit=crop" alt="Mechanic at Work" /></div>
-                        <div class="hero-slide"><img id="heroImg3" src="https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=1920&h=1080&fit=crop" alt="Engineering Tools" /></div>
-                    </div>
-                    <div class="hero-overlay">
-                        <div class="container">
-                            <div class="hero-content show-ar" id="heroContent">
-                                <div class="lang-ar">
-                                    <h1 class="hero-title" id="heroTitleAr"><span class="highlight">ورشة الفرات الأوسط</span></h1>
-                                    <p class="hero-subtitle" id="heroSubtitleAr">لتصليح وبيع كافة أنواع <span class="highlight">البمبات والنوزلات</span> بأحدث الطرق الفنية</p>
-                                    <p class="hero-management" id="heroManagementAr"><span class="highlight">بإدارة:</span> الحاج سمير محمد الكرماني وأولاده</p>
-                                    <p class="hero-address" id="heroAddressAr"><span class="highlight">العنوان:</span> النجف الأشرف - الحي الصناعي - منتصف شارع إعدادية الصناعة</p>
-                                </div>
-                                <div class="lang-en">
-                                    <h1 class="hero-title" id="heroTitleEn"><span class="highlight">Middle Euphrates Workshop</span></h1>
-                                    <p class="hero-subtitle" id="heroSubtitleEn">Repair and sale of all types of <span class="highlight">pumps and nozzles</span> using the latest technical methods</p>
-                                    <p class="hero-management" id="heroManagementEn"><span class="highlight">Managed by:</span> Hajj Samir Mohammed Al-Kermani and his sons</p>
-                                    <p class="hero-address" id="heroAddressEn"><span class="highlight">Address:</span> Najaf Al-Ashraf - Industrial District - Middle of Industrial High School Street</p>
-                                </div>
-                                <div class="lang-ku">
-                                    <h1 class="hero-title" id="heroTitleKu"><span class="highlight">کارگەی ناوەڕاستی فورات</span></h1>
-                                    <p class="hero-subtitle" id="heroSubtitleKu">چاککردنەوە و فرۆشتنی هەموو جۆرەکانی <span class="highlight">پەمپ و نۆزل</span> بە پێشکەوتووترین ڕێگاکانی تەکنیکی</p>
-                                    <p class="hero-management" id="heroManagementKu"><span class="highlight">بە بەڕێوەبەرایەتی:</span> حاج سەمیر محەممەد کەرمانی و کوڕەکانی</p>
-                                    <p class="hero-address" id="heroAddressKu"><span class="highlight">ناونیشان:</span> نەجەف ئەشرەف - گەڕەکی پیشەسازی - ناوەڕاستی شەقامی ئامادەیی پیشەسازی</p>
-                                </div>
-                                <div class="hero-actions">
-                                    <a class="btn-primary" id="btnLoginAr" href="/login">سجل دخولك</a>
-                                    <a class="btn-secondary" id="btnServiceAr" href="/service">اطلب خدمة</a>
-                                    <a class="btn-primary" id="btnLoginEn" href="/login" style="display:none;">Login</a>
-                                    <a class="btn-secondary" id="btnServiceEn" href="/service" style="display:none;">Request Service</a>
-                                    <a class="btn-primary" id="btnLoginKu" href="/login" style="display:none;">چوونەژوورەوە</a>
-                                    <a class="btn-secondary" id="btnServiceKu" href="/service" style="display:none;">داوای خزمەت</a>
-                                </div>
-                                <div class="slider-controls">
-                                    <button class="slider-arrow" id="prevSlide" aria-label="Previous">‹</button>
-                                    <div class="slider-dots">
-                                        <span class="slider-dot active" data-index="0"></span>
-                                        <span class="slider-dot" data-index="1"></span>
-                                        <span class="slider-dot" data-index="2"></span>
-                                        <span class="slider-dot" data-index="3"></span>
-                                    </div>
-                                    <button class="slider-arrow" id="nextSlide" aria-label="Next">›</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ===== ARCHIVAL ALBUM (نبذة عن مؤسستنا) — REDESIGNED: Perfect 2-Column Grid ===== -->
-                <section class="archival-section" id="about">
-                    <div class="container">
-                        <div class="section-header">
-                            <span class="section-tag" id="aboutTag">من نحن</span>
-                            <h2 class="section-title" id="aboutTitle">نبذة عن <span class="highlight">مؤسستنا</span></h2>
-                            <p class="section-subtitle" id="aboutSub">خبرة تمتد لأكثر من 40 عاماً في مجال البمبات والنوزلات</p>
-                        </div>
-
-                        <!-- Year Navigation -->
-                        <div class="archival-nav" id="archivalNav"></div>
-
-                        <!-- Timeline -->
-                        <div class="archival-timeline" id="archivalTimeline"></div>
-                    </div>
-                </section>
-
-                <!-- ===== ABOUT / VISION & MISSION ===== -->
-                <section class="about-section" id="vision">
-                    <div class="container">
-                        <div class="about-grid">
-                            <div class="about-card"><h3 id="aboutMissionTitle">رسالتنا</h3><p id="aboutMissionDesc">تقديم حلول إحكام عالية الجودة تضمن موثوقية المحرك وأداءه في جميع أنحاء العالم</p></div>
-                            <div class="about-card"><h3 id="aboutVisionTitle">رؤيتنا</h3><p id="aboutVisionDesc">أن نكون الرائد العالمي في صناعة جوانات رأس الأسطوانة، ونضع المعيار للجودة والابتكار</p></div>
-                            <div class="about-card"><h3 id="aboutValuesTitle">قيمنا</h3><p id="aboutValuesDesc"><strong>الجودة</strong> — هندسة دقيقة. <strong>الموثوقية</strong> — موثوق بها من قبل المحترفين. <strong>الابتكار</strong> — تحسين مستمر.</p></div>
-                            <div class="about-card"><h3 id="aboutStoryTitle">قصتنا</h3><p id="aboutStoryDesc">تأسست CONSAN® في عام 1980، وكانت في طليعة تكنولوجيا إحكام السيارات، وتخدم العملاء في أكثر من 50 دولة</p></div>
-                        </div>
-                        <div class="stats-grid">
-                            <div class="stat-item"><div class="stat-number" id="stat1Num">45+</div><div class="stat-label" id="stat1Label">سنوات من التميز</div></div>
-                            <div class="stat-item"><div class="stat-number" id="stat2Num">50+</div><div class="stat-label" id="stat2Label">دولة تم خدمتها</div></div>
-                            <div class="stat-item"><div class="stat-number" id="stat3Num">1000+</div><div class="stat-label" id="stat3Label">منتج تم تصنيعه</div></div>
-                            <div class="stat-item"><div class="stat-number" id="stat4Num">99%</div><div class="stat-label" id="stat4Label">رضا العملاء</div></div>
-                        </div>
-                        <div style="margin-top: 50px; text-align: center;">
-                            <h3 style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;" id="teamTitle">فريقنا <span class="highlight">الخبير</span></h3>
-                            <p style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 30px;" id="teamSub">المحترفون وراء منتجاتنا عالية الجودة</p>
-                            <div class="team-grid">
-                                <div class="team-member"><h4 id="team1Name">أحمد يلماز</h4><div class="role" id="team1Role">الرئيس التنفيذي والمؤسس</div><p class="bio" id="team1Bio">أكثر من 40 عاماً في مجال إحكام السيارات</p></div>
-                                <div class="team-member"><h4 id="team2Name">محمد دمير</h4><div class="role" id="team2Role">رئيس الهندسة</div><p class="bio" id="team2Bio">خبير في التصنيع الدقيق</p></div>
-                                <div class="team-member"><h4 id="team3Name">آيشة كايا</h4><div class="role" id="team3Role">مدير مراقبة الجودة</div><p class="bio" id="team3Bio">ضمان معايير الجودة العالية</p></div>
-                                <div class="team-member"><h4 id="team4Name">مصطفى أوز</h4><div class="role" id="team4Role">مدير الإنتاج</div><p class="bio" id="team4Bio">الإشراف على التميز التصنيعي</p></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="section-cta">
-                    <div class="container">
-                        <div class="cta-content">
-                            <div class="badge" id="ctaBadge">الجودة منذ 1980</div>
-                            <h2 id="ctaTitle">ابدأ رحلة <span>النجاح</span></h2>
-                            <p id="ctaDesc">انضم إلى آلاف العملاء الراضين الذين يثقون بـ CONSAN® للحصول على حلول عالية الجودة</p>
-                            <div class="cta-features">
-                                <div class="cta-feature"><h4 id="feature1Title">جودة فائقة</h4><p id="feature1Desc">مصنوعة بأعلى المعايير</p></div>
-                                <div class="cta-feature"><h4 id="feature2Title">ثقة عالمية</h4><p id="feature2Desc">موثوق في أكثر من 50 دولة</p></div>
-                                <div class="cta-feature"><h4 id="feature3Title">دعم خبير</h4><p id="feature3Desc">دعم فني مخصص</p></div>
-                            </div>
-                            <a href="javascript:void(0)" onclick="toggleContact()" class="btn-primary" id="ctaBtn" style="font-size:1.05rem; padding:16px 48px;">احصل على جودة فائقة</a>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="featured-section">
-                    <div class="container">
-                        <div class="section-header">
-                            <span class="section-tag" id="featuredTag">المميزات</span>
-                            <h2 class="section-title" id="featuredTitle">لماذا <span class="highlight">تختارنا</span></h2>
-                            <p class="section-subtitle" id="featuredSub">خبرة تمتد لأكثر من 40 عاماً في مجال البمبات والنوزلات</p>
-                        </div>
-                        <div class="featured-grid">
-                            <div class="featured-card"><h3 id="f1Title">دقة هندسية</h3><p id="f1Desc">أحدث المعدات والتقنيات لضمان أعلى مستويات الدقة</p></div>
-                            <div class="featured-card"><h3 id="f2Title">خبرة متراكمة</h3><p id="f2Desc">أكثر من 40 عاماً من الخبرة في مجال البمبات والنوزلات</p></div>
-                            <div class="featured-card"><h3 id="f3Title">جودة مضمونة</h3><p id="f3Desc">جميع أعمالنا مضمونة بأعلى معايير الجودة</p></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="heritage-section" id="heritage">
-                    <div class="container">
-                        <div class="section-header">
-                            <span class="section-tag" id="heritageTag">خبرة وحرفيون</span>
-                            <h2 class="section-title" id="heritageTitle">حرفيون <span class="highlight">متمرسون</span></h2>
-                            <p class="section-subtitle" id="heritageSub">فريق من الخبراء المتخصصين في أنظمة الحقن الديزل والبمبات</p>
-                        </div>
-                        <div class="heritage-grid">
-                            <div class="heritage-item"><span class="num">01</span><div class="content"><h4 id="h1Title">خبرة تمتد لعقود</h4><p id="h1Desc">أكثر من 40 عاماً من الخبرة العملية في مجال تصليح وبيع البمبات والنوزلات</p></div></div>
-                            <div class="heritage-item"><span class="num">02</span><div class="content"><h4 id="h2Title">متخصصون في أنظمة الحقن</h4><p id="h2Desc">خبراء في تشخيص وإصلاح جميع أنواع أنظمة الحقن الديزل والإلكترونية</p></div></div>
-                            <div class="heritage-item"><span class="num">03</span><div class="content"><h4 id="h3Title">تقنيات حديثة</h4><p id="h3Desc">نستخدم أحدث أجهزة الفحص والتشخيص الإلكترونية لضمان الدقة</p></div></div>
-                            <div class="heritage-item"><span class="num">04</span><div class="content"><h4 id="h4Title">خبرة تراكمية</h4><p id="h4Desc">مزيج فريد من الخبرة التقليدية والمهارات الحديثة في ورشة واحدة</p></div></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="services-section" id="services">
-                    <div class="container">
-                        <div class="section-header">
-                            <span class="section-tag" id="servicesTag">خدماتنا</span>
-                            <h2 class="section-title" id="servicesTitle">ما <span class="highlight">نقدمه</span></h2>
-                            <p class="section-subtitle" id="servicesSub">خدمات متخصصة في عالم البمبات والنوزلات بأعلى معايير الجودة</p>
-                        </div>
-                        <div class="services-grid">
-                            <div class="service-card"><span class="tag" id="sTag1">متخصص</span><h3 id="sTitle1">تصليح البمبات</h3><p id="sDesc1">تصليح كافة أنواع البمبات الديزل والبنزين بأحدث التقنيات</p><a href="/service" class="link" id="sLink1">اعرف المزيد ←</a></div>
-                            <div class="service-card"><span class="tag" id="sTag2">دقة عالية</span><h3 id="sTitle2">النوزلات والحاقنات</h3><p id="sDesc2">فحص وتنظيف وضبط النوزلات لتحسين أداء المحرك</p><a href="/service" class="link" id="sLink2">اعرف المزيد ←</a></div>
-                            <div class="service-card"><span class="tag" id="sTag3">احترافي</span><h3 id="sTitle3">فحص إلكتروني</h3><p id="sDesc3">تشخيص دقيق باستخدام أحدث أجهزة الفحص الإلكترونية</p><a href="/service" class="link" id="sLink3">اعرف المزيد ←</a></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="solutions-section">
-                    <div class="container">
-                        <div class="section-header">
-                            <span class="section-tag" id="solTag">حلولنا</span>
-                            <h2 class="section-title" id="solTitle">حلول <span class="highlight">مبتكرة</span></h2>
-                            <p class="section-subtitle" id="solSub">نقدم حلولاً متكاملة لجميع احتياجاتكم</p>
-                        </div>
-                        <div class="solutions-grid">
-                            <div class="solution-card"><h4 id="sol1Title">تشخيص دقيق</h4><p id="sol1Desc">فحص متكامل لأنظمة الحقن</p></div>
-                            <div class="solution-card"><h4 id="sol2Title">صيانة متخصصة</h4><p id="sol2Desc">إصلاح احترافي للبمبات</p></div>
-                            <div class="solution-card"><h4 id="sol3Title">قطع غيار أصلية</h4><p id="sol3Desc">توفير قطع غيار عالية الجودة</p></div>
-                            <div class="solution-card"><h4 id="sol4Title">استشارات فنية</h4><p id="sol4Desc">نصائح خبراء لتحسين الأداء</p></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="whatwedo-section">
-                    <div class="container">
-                        <div class="section-header">
-                            <span class="section-tag" id="wwTag">ماذا نفعل</span>
-                            <h2 class="section-title" id="wwTitle">مجالات <span class="highlight">خبرتنا</span></h2>
-                            <p class="section-subtitle" id="wwSub">خبرة شاملة في مجال البمبات والنوزلات</p>
-                        </div>
-                        <div class="whatwedo-grid">
-                            <div class="whatwedo-item"><span class="num">01</span><div class="content"><h4 id="ww1Title">تشخيص الأعطال</h4><p id="ww1Desc">فحص دقيق لتحديد المشاكل بدقة</p></div></div>
-                            <div class="whatwedo-item"><span class="num">02</span><div class="content"><h4 id="ww2Title">إصلاح متكامل</h4><p id="ww2Desc">إصلاح شامل لجميع أنواع البمبات</p></div></div>
-                            <div class="whatwedo-item"><span class="num">03</span><div class="content"><h4 id="ww3Title">بيع قطع غيار</h4><p id="ww3Desc">توفير قطع غيار أصلية ومضمونة</p></div></div>
-                            <div class="whatwedo-item"><span class="num">04</span><div class="content"><h4 id="ww4Title">ضبط الأداء</h4><p id="ww4Desc">تحسين أداء المحرك وزيادة الكفاءة</p></div></div>
-                            <div class="whatwedo-item"><span class="num">05</span><div class="content"><h4 id="ww5Title">استشارات فنية</h4><p id="ww5Desc">نصائح وإرشادات من خبراء المجال</p></div></div>
-                            <div class="whatwedo-item"><span class="num">06</span><div class="content"><h4 id="ww6Title">خدمة ما بعد البيع</h4><p id="ww6Desc">دعم ومتابعة مستمرة للعملاء</p></div></div>
-                        </div>
-                    </div>
-                </section>
-
-                {{GetFooterHtml()}}
-                {{GetContactWidgetHtml()}}
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                var currentLang = 'ar';
-
-                {{GetCoreNavScript()}}
-                {{GetContactWidgetScript()}}
-
-                var currentSlide = 0;
-                var slides = document.querySelectorAll('.hero-slide');
-                var dots = document.querySelectorAll('.slider-dot');
-                var prevBtn = document.getElementById('prevSlide');
-                var nextBtn = document.getElementById('nextSlide');
-                var slideInterval;
-
-                function goToSlide(index) {
-                    slides.forEach(function(slide, i) { slide.classList.toggle('active', i === index); });
-                    dots.forEach(function(dot, i) { dot.classList.toggle('active', i === index); });
-                    currentSlide = index;
-                }
-                function nextSlide() { goToSlide((currentSlide + 1) % slides.length); }
-                function prevSlide() { goToSlide((currentSlide - 1 + slides.length) % slides.length); }
-                function startAutoSlide() { stopAutoSlide(); slideInterval = setInterval(nextSlide, 6000); }
-                function stopAutoSlide() { if (slideInterval) { clearInterval(slideInterval); slideInterval = null; } }
-
-                if (nextBtn) nextBtn.addEventListener('click', function() { nextSlide(); startAutoSlide(); });
-                if (prevBtn) prevBtn.addEventListener('click', function() { prevSlide(); startAutoSlide(); });
-                dots.forEach(function(dot) { dot.addEventListener('click', function() { goToSlide(parseInt(dot.dataset.index)); startAutoSlide(); }); });
-
-                var sliderEl = document.querySelector('.hero-slider');
-                if (sliderEl) {
-                    var touchStartX = 0, touchEndX = 0;
-                    sliderEl.addEventListener('touchstart', function(e) { touchStartX = e.changedTouches[0].screenX; });
-                    sliderEl.addEventListener('touchend', function(e) {
-                        touchEndX = e.changedTouches[0].screenX;
-                        var diff = touchStartX - touchEndX;
-                        if (Math.abs(diff) > 50) { if (diff > 0) nextSlide(); else prevSlide(); startAutoSlide(); }
-                    });
-                    sliderEl.addEventListener('mouseenter', stopAutoSlide);
-                    sliderEl.addEventListener('mouseleave', startAutoSlide);
-                }
-                startAutoSlide();
-
-                // =====================================================================
-                // ===== ARCHIVAL ALBUM LOADER (REDESIGNED — Perfect 2-Column Grid) =====
-                // =====================================================================
-                var allArchivalItems = [];
-
-                function loadArchivalAlbum() {
-                    fetch('/api/archival-album').then(function(r) { return r.ok ? r.json() : []; }).then(function(items) {
-                        allArchivalItems = items || [];
-                        renderArchivalNav(allArchivalItems);
-                        renderArchivalTimeline(allArchivalItems);
-                    }).catch(function() { });
-                }
-
-                function renderArchivalNav(items) {
-                    var nav = document.getElementById('archivalNav');
-                    nav.innerHTML = '';
-                    if (!items || !items.length) return;
-                    items.forEach(function(item, index) {
-                        var btn = document.createElement('button');
-                        btn.className = 'archival-nav-btn' + (index === 0 ? ' active' : '');
-                        btn.textContent = item.year;
-                        btn.dataset.year = item.year;
-                        btn.onclick = function() {
-                            document.querySelectorAll('.archival-nav-btn').forEach(function(b) { b.classList.remove('active'); });
-                            btn.classList.add('active');
-                            var target = document.querySelector('.archival-item[data-year="' + item.year + '"]');
-                            if (target) {
-                                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                target.style.transition = 'all 0.6s ease';
-                                target.style.transform = 'scale(1.03)';
-                                setTimeout(function() { target.style.transform = 'scale(1)'; }, 600);
-                            }
-                        };
-                        nav.appendChild(btn);
-                    });
-                }
-
-                // =====================================================================
-                // ===== REDESIGNED TIMELINE RENDERER — Strict 2-Column Grid =====
-                // =====================================================================
-                // - Odd items (index 0, 2, 4...): Card in LEFT column, Big Year in RIGHT column
-                // - Even items (index 1, 3, 5...): Big Year in LEFT column, Card in RIGHT column
-                // - Big Year is vertically centered (align-items: center on grid parent)
-                // - No absolute positioning, no manual pixel offsets → zero collision
-                // =====================================================================
-                function renderArchivalTimeline(items) {
-                    var timeline = document.getElementById('archivalTimeline');
-                    timeline.innerHTML = '';
-                    if (!items || !items.length) return;
-
-                    items.forEach(function(item, index) {
-                        var isOdd = (index % 2 === 0); // index 0 => odd (card left, year right)
-                        var div = document.createElement('div');
-                        div.className = 'archival-item ' + (isOdd ? 'archival-odd' : 'archival-even');
-                        div.dataset.year = item.year;
-
-                        var caption = currentLang === 'en' ? (item.captionEn || item.captionAr) :
-                                      currentLang === 'ku' ? (item.captionKu || item.captionAr) : (item.captionAr || item.captionEn);
-
-                        var yearText = escapeHtml(item.year);
-                        var cardHtml =
-                            '<div class="archival-card">' +
-                                '<div class="archival-year-badge">' + yearText + '</div>' +
-                                '<div class="archival-img-wrapper">' +
-                                    '<img src="' + escapeHtml(item.imageUrl) + '" alt="' + yearText + '" onerror="this.style.display=\'none\'" loading="lazy" />' +
-                                '</div>' +
-                                '<div class="archival-caption"><strong>' + yearText + '</strong> — ' + escapeHtml(caption || '') + '</div>' +
-                            '</div>';
-
-                        var yearHtml =
-                            '<div class="archival-year-slot">' +
-                                '<span class="big-year">' + yearText + '</span>' +
-                            '</div>';
-
-                        var cardSlot = '<div class="archival-card-slot">' + cardHtml + '</div>';
-
-                        // Compose DOM in the correct column order for accessibility / screen readers
-                        var innerHtml;
-                        if (isOdd) {
-                            // Card LEFT, Year RIGHT
-                            innerHtml = cardSlot + yearHtml;
-                        } else {
-                            // Year LEFT, Card RIGHT
-                            innerHtml = yearHtml + cardSlot;
-                        }
-
-                        div.innerHTML =
-                            '<div class="timeline-node"></div>' +
-                            innerHtml;
-
-                        timeline.appendChild(div);
-
-                        // Stagger animation
-                        setTimeout(function() {
-                            div.classList.add('visible');
-                        }, index * 150);
-                    });
-
-                    // Re-observe for scroll animations
-                    observeArchivalItems();
-                }
-
-                function observeArchivalItems() {
-                    if ('IntersectionObserver' in window) {
-                        var observer = new IntersectionObserver(function(entries) {
-                            entries.forEach(function(entry) {
-                                if (entry.isIntersecting) {
-                                    entry.target.classList.add('visible');
-                                    observer.unobserve(entry.target);
-                                }
-                            });
-                        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-                        document.querySelectorAll('.archival-item').forEach(function(el) { observer.observe(el); });
-                    } else {
-                        document.querySelectorAll('.archival-item').forEach(function(el) { el.classList.add('visible'); });
-                    }
-                }
-
-                function escapeHtml(str) {
-                    if (str === null || str === undefined) return '';
-                    return String(str)
-                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-                }
-
-                var translations = {
-                    ar: {
-                        heroTitle: '<span class="highlight">ورشة الفرات الأوسط</span>', heroSubtitle: 'لتصليح وبيع كافة أنواع <span class="highlight">البمبات والنوزلات</span> بأحدث الطرق الفنية',
-                        heroManagement: '<span class="highlight">بإدارة:</span> الحاج سمير محمد الكرماني وأولاده', heroAddress: '<span class="highlight">العنوان:</span> النجف الأشرف - الحي الصناعي - منتصف شارع إعدادية الصناعة',
-                        navHome: 'الرئيسية', navAbout: 'من نحن', navServices: 'خدماتنا', navIndustrial: 'خدمات صناعية', navExplorer: 'المستكشف', navGuide: 'الدليل الشامل',
-                        aboutTag: 'من نحن', aboutTitle: 'نبذة عن <span class="highlight">مؤسستنا</span>', aboutSub: 'خبرة تمتد لأكثر من 40 عاماً في مجال البمبات والنوزلات',
-                        aboutMissionTitle: 'رسالتنا', aboutMissionDesc: 'تقديم حلول إحكام عالية الجودة تضمن موثوقية المحرك وأداءه في جميع أنحاء العالم',
-                        aboutVisionTitle: 'رؤيتنا', aboutVisionDesc: 'أن نكون الرائد العالمي في صناعة جوانات رأس الأسطوانة، ونضع المعيار للجودة والابتكار',
-                        aboutValuesTitle: 'قيمنا', aboutValuesDesc: '<strong>الجودة</strong> — هندسة دقيقة. <strong>الموثوقية</strong> — موثوق بها من قبل المحترفين. <strong>الابتكار</strong> — تحسين مستمر.',
-                        aboutStoryTitle: 'قصتنا', aboutStoryDesc: 'تأسست CONSAN® في عام 1980، وكانت في طليعة تكنولوجيا إحكام السيارات، وتخدم العملاء في أكثر من 50 دولة',
-                        stat1Label: 'سنوات من التميز', stat2Label: 'دولة تم خدمتها', stat3Label: 'منتج تم تصنيعه', stat4Label: 'رضا العملاء',
-                        teamTitle: 'فريقنا <span class="highlight">الخبير</span>', teamSub: 'المحترفون وراء منتجاتنا عالية الجودة',
-                        team1Name: 'أحمد يلماز', team1Role: 'الرئيس التنفيذي والمؤسس', team1Bio: 'أكثر من 40 عاماً في مجال إحكام السيارات',
-                        team2Name: 'محمد دمير', team2Role: 'رئيس الهندسة', team2Bio: 'خبير في التصنيع الدقيق',
-                        team3Name: 'آيشة كايا', team3Role: 'مدير مراقبة الجودة', team3Bio: 'ضمان معايير الجودة العالية',
-                        team4Name: 'مصطفى أوز', team4Role: 'مدير الإنتاج', team4Bio: 'الإشراف على التميز التصنيعي',
-                        ctaBadge: 'الجودة منذ 1980', ctaTitle: 'ابدأ رحلة <span>النجاح</span>', ctaDesc: 'انضم إلى آلاف العملاء الراضين الذين يثقون بـ CONSAN® للحصول على حلول عالية الجودة',
-                        feature1Title: 'جودة فائقة', feature1Desc: 'مصنوعة بأعلى المعايير', feature2Title: 'ثقة عالمية', feature2Desc: 'موثوق في أكثر من 50 دولة', feature3Title: 'دعم خبير', feature3Desc: 'دعم فني مخصص', ctaBtn: 'احصل على جودة فائقة',
-                        featuredTag: 'المميزات', featuredTitle: 'لماذا <span class="highlight">تختارنا</span>', featuredSub: 'خبرة تمتد لأكثر من 40 عاماً في مجال البمبات والنوزلات',
-                        f1Title: 'دقة هندسية', f1Desc: 'أحدث المعدات والتقنيات لضمان أعلى مستويات الدقة', f2Title: 'خبرة متراكمة', f2Desc: 'أكثر من 40 عاماً من الخبرة في مجال البمبات والنوزلات', f3Title: 'جودة مضمونة', f3Desc: 'جميع أعمالنا مضمونة بأعلى معايير الجودة',
-                        heritageTag: 'خبرة وحرفيون', heritageTitle: 'حرفيون <span class="highlight">متمرسون</span>', heritageSub: 'فريق من الخبراء المتخصصين في أنظمة الحقن الديزل والبمبات',
-                        h1Title: 'خبرة تمتد لعقود', h1Desc: 'أكثر من 40 عاماً من الخبرة العملية في مجال تصليح وبيع البمبات والنوزلات',
-                        h2Title: 'متخصصون في أنظمة الحقن', h2Desc: 'خبراء في تشخيص وإصلاح جميع أنواع أنظمة الحقن الديزل والإلكترونية',
-                        h3Title: 'تقنيات حديثة', h3Desc: 'نستخدم أحدث أجهزة الفحص والتشخيص الإلكترونية لضمان الدقة',
-                        h4Title: 'خبرة تراكمية', h4Desc: 'مزيج فريد من الخبرة التقليدية والمهارات الحديثة في ورشة واحدة',
-                        servicesTag: 'خدماتنا', servicesTitle: 'ما <span class="highlight">نقدمه</span>', servicesSub: 'خدمات متخصصة في عالم البمبات والنوزلات بأعلى معايير الجودة',
-                        sTag1: 'متخصص', sTitle1: 'تصليح البمبات', sDesc1: 'تصليح كافة أنواع البمبات الديزل والبنزين بأحدث التقنيات', sLink1: 'اعرف المزيد ←',
-                        sTag2: 'دقة عالية', sTitle2: 'النوزلات والحاقنات', sDesc2: 'فحص وتنظيف وضبط النوزلات لتحسين أداء المحرك', sLink2: 'اعرف المزيد ←',
-                        sTag3: 'احترافي', sTitle3: 'فحص إلكتروني', sDesc3: 'تشخيص دقيق باستخدام أحدث أجهزة الفحص الإلكترونية', sLink3: 'اعرف المزيد ←',
-                        solTag: 'حلولنا', solTitle: 'حلول <span class="highlight">مبتكرة</span>', solSub: 'نقدم حلولاً متكاملة لجميع احتياجاتكم',
-                        sol1Title: 'تشخيص دقيق', sol1Desc: 'فحص متكامل لأنظمة الحقن', sol2Title: 'صيانة متخصصة', sol2Desc: 'إصلاح احترافي للبمبات', sol3Title: 'قطع غيار أصلية', sol3Desc: 'توفير قطع غيار عالية الجودة', sol4Title: 'استشارات فنية', sol4Desc: 'نصائح خبراء لتحسين الأداء',
-                        wwTag: 'ماذا نفعل', wwTitle: 'مجالات <span class="highlight">خبرتنا</span>', wwSub: 'خبرة شاملة في مجال البمبات والنوزلات',
-                        ww1Title: 'تشخيص الأعطال', ww1Desc: 'فحص دقيق لتحديد المشاكل بدقة', ww2Title: 'إصلاح متكامل', ww2Desc: 'إصلاح شامل لجميع أنواع البمبات', ww3Title: 'بيع قطع غيار', ww3Desc: 'توفير قطع غيار أصلية ومضمونة', ww4Title: 'ضبط الأداء', ww4Desc: 'تحسين أداء المحرك وزيادة الكفاءة', ww5Title: 'استشارات فنية', ww5Desc: 'نصائح وإرشادات من خبراء المجال', ww6Title: 'خدمة ما بعد البيع', ww6Desc: 'دعم ومتابعة مستمرة للعملاء',
-                        footerText: 'جوانات عالية الجودة وحلول إحكام للسيارات منذ 1980', footerCopy: '© 2026 CONSAN®. جميع الحقوق محفوظة', footerLinkedin: 'لينكد إن', footerFacebook: 'فيسبوك', footerInstagram: 'إنستغرام',
-                        contactTitle: 'أرقام التواصل', contactLabel1: 'ابو مصطفى', contactLabel2: 'ابو رضا', contactLabel3: 'ابو علي', contactBadgeText: 'تواصل معنا', contactHint: 'اضغط على الرقم أو أيقونة واتساب للتواصل'
-                    },
-                    en: {
-                        heroTitle: '<span class="highlight">Middle Euphrates Workshop</span>', heroSubtitle: 'Repair and sale of all types of <span class="highlight">pumps and nozzles</span> using the latest technical methods',
-                        heroManagement: '<span class="highlight">Managed by:</span> Hajj Samir Mohammed Al-Kermani and his sons', heroAddress: '<span class="highlight">Address:</span> Najaf Al-Ashraf - Industrial District - Middle of Industrial High School Street',
-                        navHome: 'Home', navAbout: 'About', navServices: 'Our Services', navIndustrial: 'Industrial Services', navExplorer: 'Explorer', navGuide: 'Comprehensive Guide',
-                        aboutTag: 'About Us', aboutTitle: 'About <span class="highlight">Our Company</span>', aboutSub: 'Over 40 years of experience in pumps and nozzles',
-                        aboutMissionTitle: 'Our Mission', aboutMissionDesc: 'To deliver premium quality automotive sealing solutions that ensure engine reliability and performance worldwide',
-                        aboutVisionTitle: 'Our Vision', aboutVisionDesc: 'To be the global leader in cylinder head gasket manufacturing, setting the standard for quality and innovation',
-                        aboutValuesTitle: 'Our Values', aboutValuesDesc: '<strong>Quality</strong> — Precision engineering. <strong>Reliability</strong> — Trusted by professionals. <strong>Innovation</strong> — Continuous improvement.',
-                        aboutStoryTitle: 'Our Story', aboutStoryDesc: 'Founded in 1980, CONSAN® has been at the forefront of automotive sealing technology, serving customers in over 50 countries.',
-                        stat1Label: 'Years of Excellence', stat2Label: 'Countries Served', stat3Label: 'Products Manufactured', stat4Label: 'Customer Satisfaction',
-                        teamTitle: 'Our <span class="highlight">Expert</span> Team', teamSub: 'The professionals behind our premium quality products',
-                        team1Name: 'Ahmet Yılmaz', team1Role: 'CEO & Founder', team1Bio: '40+ years in automotive sealing',
-                        team2Name: 'Mehmet Demir', team2Role: 'Head of Engineering', team2Bio: 'Expert in precision manufacturing',
-                        team3Name: 'Ayşe Kaya', team3Role: 'Quality Control Manager', team3Bio: 'Ensuring premium quality standards',
-                        team4Name: 'Mustafa Öz', team4Role: 'Production Director', team4Bio: 'Overseeing manufacturing excellence',
-                        ctaBadge: 'Quality Since 1980', ctaTitle: 'Start Your <span>Success</span> Journey', ctaDesc: 'Join thousands of satisfied customers who trust CONSAN® for premium quality automotive sealing solutions',
-                        feature1Title: 'Premium Quality', feature1Desc: 'Engineered to the highest standards', feature2Title: 'Global Trust', feature2Desc: 'Trusted in over 50 countries', feature3Title: 'Expert Support', feature3Desc: 'Dedicated technical support', ctaBtn: 'Get Premium Quality',
-                        featuredTag: 'Features', featuredTitle: 'Why <span class="highlight">Choose Us</span>', featuredSub: 'Over 40 years of experience in pumps and nozzles',
-                        f1Title: 'Precision Engineering', f1Desc: 'Latest equipment and techniques ensuring highest precision', f2Title: 'Deep Expertise', f2Desc: 'Over 40 years of experience in pumps and nozzles', f3Title: 'Guaranteed Quality', f3Desc: 'All work is guaranteed to the highest quality standards',
-                        heritageTag: 'Heritage & Craftsmen', heritageTitle: 'Master <span class="highlight">Craftsmen</span>', heritageSub: 'A team of experts specialized in diesel injection systems and pumps',
-                        h1Title: 'Decades of Experience', h1Desc: 'Over 40 years of hands-on experience in pump repair and sales',
-                        h2Title: 'Injection System Specialists', h2Desc: 'Experts in diagnosing and repairing all types of diesel and electronic injection systems',
-                        h3Title: 'Modern Technology', h3Desc: 'Using the latest electronic diagnostic equipment for precision',
-                        h4Title: 'Cumulative Expertise', h4Desc: 'A unique blend of traditional expertise and modern skills under one roof',
-                        servicesTag: 'Our Services', servicesTitle: 'What We <span class="highlight">Offer</span>', servicesSub: 'Specialized services in pumps and nozzles with the highest quality standards',
-                        sTag1: 'Specialized', sTitle1: 'Pump Repair', sDesc1: 'Repair of all types of diesel and gasoline pumps with latest techniques', sLink1: 'Learn More →',
-                        sTag2: 'High Precision', sTitle2: 'Nozzles & Injectors', sDesc2: 'Inspection, cleaning and calibration of nozzles to improve engine performance', sLink2: 'Learn More →',
-                        sTag3: 'Professional', sTitle3: 'Electronic Diagnosis', sDesc3: 'Accurate diagnosis using the latest electronic testing equipment', sLink3: 'Learn More →',
-                        solTag: 'Our Solutions', solTitle: 'Innovative <span class="highlight">Solutions</span>', solSub: 'Comprehensive solutions for all your needs',
-                        sol1Title: 'Accurate Diagnosis', sol1Desc: 'Comprehensive inspection of injection systems', sol2Title: 'Specialized Maintenance', sol2Desc: 'Professional pump repair and maintenance', sol3Title: 'Genuine Parts', sol3Desc: 'High-quality genuine spare parts supply', sol4Title: 'Technical Consulting', sol4Desc: 'Expert advice for performance optimization',
-                        wwTag: 'What We Do', wwTitle: 'Areas of <span class="highlight">Expertise</span>', wwSub: 'Comprehensive expertise in pumps and nozzles',
-                        ww1Title: 'Fault Diagnosis', ww1Desc: 'Precise inspection to identify issues accurately', ww2Title: 'Integrated Repair', ww2Desc: 'Comprehensive repair of all pump types', ww3Title: 'Parts Sales', ww3Desc: 'Genuine and guaranteed spare parts supply', ww4Title: 'Performance Tuning', ww4Desc: 'Engine performance optimization for efficiency', ww5Title: 'Technical Consulting', ww5Desc: 'Expert guidance and recommendations', ww6Title: 'After-Sales Service', ww6Desc: 'Continuous support and follow-up for customers',
-                        footerText: 'Premium quality cylinder head gaskets and automotive sealing solutions since 1980', footerCopy: '© 2026 CONSAN®. All rights reserved', footerLinkedin: 'LinkedIn', footerFacebook: 'Facebook', footerInstagram: 'Instagram',
-                        contactTitle: 'Contact Numbers', contactLabel1: 'Abu Mustafa', contactLabel2: 'Abu Reda', contactLabel3: 'Abu Ali', contactBadgeText: 'Contact Us', contactHint: 'Tap the number or WhatsApp icon to chat'
-                    },
-                    ku: {
-                        heroTitle: '<span class="highlight">کارگەی ناوەڕاستی فورات</span>', heroSubtitle: 'چاککردنەوە و فرۆشتنی هەموو جۆرەکانی <span class="highlight">پەمپ و نۆزل</span> بە پێشکەوتووترین ڕێگاکانی تەکنیکی',
-                        heroManagement: '<span class="highlight">بە بەڕێوەبەرایەتی:</span> حاج سەمیر محەمەد کەرمانی و کوڕەکانی', heroAddress: '<span class="highlight">ناونیشان:</span> نەجەف ئەشرەف - گەڕەکی پیشەسازی - ناوەڕاستی شەقامی ئامادەیی پیشەسازی',
-                        navHome: 'ماڵەوە', navAbout: 'دەربارە', navServices: 'خزمەتەکانمان', navIndustrial: 'خزمەتی پیشەسازی', navExplorer: 'گەڕان', navGuide: 'ڕێنمایی گشتگیر',
-                        aboutTag: 'دەربارە', aboutTitle: 'دەربارەی <span class="highlight">دامەزراوەکەمان</span>', aboutSub: 'زیاتر لە ٤٠ ساڵ ئەزموون لە بواری پەمپ و نۆزل',
-                        aboutMissionTitle: 'ئەرکەکەمان', aboutMissionDesc: 'پێشکەشکردنی چارەسەری گاسکێتی کوالیتی باڵا کە متمانەی ماتۆر و کارایی لە سەرانسەری جیهاندا دابین بکات',
-                        aboutVisionTitle: 'بینینەکەمان', aboutVisionDesc: 'ببوین بە پێشەنگی جیهانی لە بەرهەمهێنانی گاسکێتی سەری سلندەر، و دانانی پێوەری کوالیتی و داهێنان',
-                        aboutValuesTitle: 'بەهاکانمان', aboutValuesDesc: '<strong>کوالیتی</strong> — ئەندازیاری ورد. <strong>متمانە</strong> — پیشەگەران متمانەیان پێدەکەن. <strong>داهێنان</strong> — باشترکردنی بەردەوام.',
-                        aboutStoryTitle: 'چیرۆکەکەمان', aboutStoryDesc: 'CONSAN® لە ساڵی 1980 دامەزراوە، و هەر لە پێشەنگی تەکنۆلۆژیای گاسکێتی ئوتومبێلدا بووە، خزمەت بە کڕیاران دەکات لە زیاتر لە ٥٠ وڵاتدا',
-                        stat1Label: 'ساڵانی بەرزایی', stat2Label: 'وڵاتی خزمەتکراو', stat3Label: 'بەرهەمی بەرهەمهێنراو', stat4Label: 'ڕازیکردنی کڕیار',
-                        teamTitle: 'تیپی <span class="highlight">شارەزای</span> ئێمە', teamSub: 'پیشەگەرانی پشت بەرهەمە کوالیتییەکەمان',
-                        team1Name: 'ئەحمەد ییلماز', team1Role: 'بەڕێوەبەری گشتی و دامەزرێنەر', team1Bio: 'زیاتر لە ٤٠ ساڵ لە بواری گاسکێتی ئوتومبێل',
-                        team2Name: 'مەحەممەد دەمیر', team2Role: 'سەرپەرشتیاری ئەندازیاری', team2Bio: 'شارەزای بەرهەمهێنانی ورد',
-                        team3Name: 'ئایشە کایا', team3Role: 'بەڕێوەبەری کۆنتڕۆڵی کوالیتی', team3Bio: 'پشکنینی پێوەرەکانی کوالیتی بەرز',
-                        team4Name: 'موستەفا ئۆز', team4Role: 'بەڕێوەبەری بەرهەمهێنان', team4Bio: 'چاودێری بەرزترین ئاستی بەرهەمهێنان',
-                        ctaBadge: 'کوالیتی لە 1980', ctaTitle: 'گەشتی <span>سەرکەوتن</span> دەست پێ بکە', ctaDesc: 'بەیەکەوە ئەو هەزاران کڕیارە ڕازیبون کە متمانە بە CONSAN® دەکەن بۆ چارەسەرەکانی کوالیتی باڵا',
-                        feature1Title: 'کوالیتی باڵا', feature1Desc: 'بەرزترین ستانداردەکان', feature2Title: 'متمانەی جیهانی', feature2Desc: 'متمانە لە زیاتر لە 50 وڵات', feature3Title: 'پشتیوانی پسپۆر', feature3Desc: 'پشتیوانی تەکنیکی تایبەت', ctaBtn: 'کوالیتی باڵا بەدەست بێنە',
-                        featuredTag: 'تایبەتمەندییەکان', featuredTitle: 'بۆچی <span class="highlight">ئێمە هەڵبژێرن</span>', featuredSub: 'زیاتر لە ٤٠ ساڵ ئەزموون لە بواری پەمپ و نۆزل',
-                        f1Title: 'وردی ئەندازیاری', f1Desc: 'پێشکەوتووترین ئامێر و تەکنیک بۆ بەرزترین وردی', f2Title: 'ئەزموونی کۆکراوە', f2Desc: 'زیاتر لە ٤٠ ساڵ ئەزموون لە بواری پەمپ و نۆزل', f3Title: 'کوالیتی مەضمون', f3Desc: 'هەموو کارەکانمان مەضمونن بە بەرزترین ستانداردەکانی کوالیتی',
-                        heritageTag: 'کارامەیی و پیشەوەران', heritageTitle: 'پیشەوەری <span class="highlight">شارەزا</span>', heritageSub: 'تیپێک لە شارەزایانی سیستەمی نۆزل و پەمپی دیزل',
-                        h1Title: 'ئەزموونی دەیەها ساڵ', h1Desc: 'زیاتر لە ٤٠ ساڵ ئەزموونی کرداری لە چاککردنەوە و فرۆشتنی پەمپ و نۆزل',
-                        h2Title: 'شارەزای سیستەمی نۆزل', h2Desc: 'شارەزا لە دیاریکردن و چاککردنەوەی هەموو جۆرەکانی سیستەمی نۆزلی دیزل و ئەلیکترۆنی',
-                        h3Title: 'تەکنیکی نوێ', h3Desc: 'بەکارهێنانی پێشکەوتووترین ئامێرەکانی پشکنینی ئەلیکترۆنی بۆ وردی',
-                        h4Title: 'ئەزموونی کۆکراوە', h4Desc: 'تێکەڵەیەکی بێهاوتا لە ئەزموونی نەریتی و تواناکانی نوێ لە کارگەیەکدا',
-                        servicesTag: 'خزمەتەکانمان', servicesTitle: 'ئێمە <span class="highlight">چی</span> پێشکەش دەکەین', servicesSub: 'خزمەتە تایبەتەکان لە بواری پەمپ و نۆزل بە بەرزترین ستانداردەکانی کوالیتی',
-                        sTag1: 'تایبەت', sTitle1: 'چاککردنەوەی پەمپ', sDesc1: 'چاککردنەوەی هەموو جۆرەکانی پەمپی دیزل و بەنزین بە پێشکەوتووترین تەکنیکەکان', sLink1: 'زیاتر بزانە →',
-                        sTag2: 'وردی بەرز', sTitle2: 'نۆزل و ئینجێکتۆر', sDesc2: 'پشکنین و پاککردنەوە و ڕێکخستنی نۆزل بۆ باشترکردنی کارایی ماتۆر', sLink2: 'زیاتر بزانە →',
-                        sTag3: 'پیشەگەر', sTitle3: 'پشکنینی ئەلیکترۆنی', sDesc3: 'دیاریکردنی ورد بە بەکارهێنانی پێشکەوتووترین ئامێرەکانی پشکنین', sLink3: 'زیاتر بزانە →',
-                        solTag: 'چارەسەرەکانمان', solTitle: 'چارەسەری <span class="highlight">نوێ</span>', solSub: 'چارەسەری گشتگیر بۆ هەموو پێویستییەکانتان',
-                        sol1Title: 'دیاریکردنی ورد', sol1Desc: 'پشکنینی گشتگیر بۆ سیستەمەکانی نۆزل', sol2Title: 'چاککردنەوەی پسپۆڕ', sol2Desc: 'چاککردنەوە و پاراستنی پەمپ', sol3Title: 'پارچەی ڕەسەن', sol3Desc: 'دابینکردنی پارچەی کوالیتی باڵا', sol4Title: 'ڕاوێژکاری تەکنیکی', sol4Desc: 'ئامۆژگاری شارەزا بۆ باشترکردنی کارایی',
-                        wwTag: 'ئێمە چی دەکەین', wwTitle: 'بوارەکانی <span class="highlight">کارامەیی</span>', wwSub: 'کارامەیی گشتگیر لە بواری پەمپ و نۆزل',
-                        ww1Title: 'دیاریکردنی کێشە', ww1Desc: 'پشکنینی ورد بۆ دیاریکردنی کێشەکان', ww2Title: 'چاککردنەوەی گشتگیر', ww2Desc: 'چاککردنەوەی هەموو جۆرەکانی پەمپ', ww3Title: 'فرۆشتنی پارچە', ww3Desc: 'دابینکردنی پارچەی ڕەسەن و مەضمون', ww4Title: 'ڕێکخستنی کارایی', ww4Desc: 'باشترکردنی کارایی ماتۆر و زیادکردنی چوستی', ww5Title: 'ڕاوێژکاری تەکنیکی', ww5Desc: 'ئامۆژگاری و ڕێنمایی لە شارەزایانی بوار', ww6Title: 'خزمەتی دوای فرۆشتن', ww6Desc: 'پشتیوانی و شوێنکەوتنی بەردەوام بۆ کڕیاران',
-                        footerText: 'گاسکێتی کوالیتی باڵا و چارەسەری گاسکێتی ئوتومبێل لە 1980', footerCopy: '© 2026 CONSAN®. هەموو مافێک پارێزراوە', footerLinkedin: 'لینکد ئین', footerFacebook: 'فەیسبوک', footerInstagram: 'ئینستاگرام',
-                        contactTitle: 'ژمارەکانی پەیوەندی', contactLabel1: 'ئەبوو مستەفا', contactLabel2: 'ئەبوو ڕەزا', contactLabel3: 'ئەبوو عەلی', contactBadgeText: 'پەیوەندیمان پێوەبکە', contactHint: 'کرتە لە ژمارە یان ئایکۆنی واتسئەپ بکە بۆ گفتوگۆ'
-                    }
-                };
-
-                function applyHeroContent() {
-                    var suffixes = { ar: 'Ar', en: 'En', ku: 'Ku' };
-                    Object.keys(suffixes).forEach(function(lang) {
-                        var t = translations[lang];
-                        var suffix = suffixes[lang];
-                        var titleEl = document.getElementById('heroTitle' + suffix);
-                        if (titleEl && t.heroTitle) titleEl.innerHTML = t.heroTitle;
-                        var subEl = document.getElementById('heroSubtitle' + suffix);
-                        if (subEl && t.heroSubtitle) subEl.innerHTML = t.heroSubtitle;
-                        var mgmtEl = document.getElementById('heroManagement' + suffix);
-                        if (mgmtEl && t.heroManagement) mgmtEl.innerHTML = t.heroManagement;
-                        var addrEl = document.getElementById('heroAddress' + suffix);
-                        if (addrEl && t.heroAddress) addrEl.innerHTML = t.heroAddress;
-                    });
-                }
-
-                function switchLanguage(lang) {
-                    currentLang = lang;
-                    document.getElementById('langOptAr').classList.toggle('active', lang === 'ar');
-                    document.getElementById('langOptEn').classList.toggle('active', lang === 'en');
-                    document.getElementById('langOptKu').classList.toggle('active', lang === 'ku');
-                    document.getElementById('langDropdown').classList.add('closed');
-                    document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
-                    document.documentElement.lang = lang;
-                    document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
-
-                    var heroContent = document.getElementById('heroContent');
-                    heroContent.className = 'hero-content show-' + lang;
-
-                    var t = translations[lang];
-
-                    document.getElementById('navHome').textContent = t.navHome;
-                    document.getElementById('navAbout').textContent = t.navAbout;
-                    document.getElementById('navServices').textContent = t.navServices;
-                    document.getElementById('navIndustrial').textContent = t.navIndustrial;
-                    document.getElementById('navExplorer').textContent = t.navExplorer;
-                    document.getElementById('navGuide').textContent = t.navGuide;
-
-                    document.getElementById('aboutTag').textContent = t.aboutTag;
-                    document.getElementById('aboutTitle').innerHTML = t.aboutTitle;
-                    document.getElementById('aboutSub').textContent = t.aboutSub;
-                    document.getElementById('aboutMissionTitle').textContent = t.aboutMissionTitle;
-                    document.getElementById('aboutMissionDesc').textContent = t.aboutMissionDesc;
-                    document.getElementById('aboutVisionTitle').textContent = t.aboutVisionTitle;
-                    document.getElementById('aboutVisionDesc').textContent = t.aboutVisionDesc;
-                    document.getElementById('aboutValuesTitle').textContent = t.aboutValuesTitle;
-                    document.getElementById('aboutValuesDesc').innerHTML = t.aboutValuesDesc;
-                    document.getElementById('aboutStoryTitle').textContent = t.aboutStoryTitle;
-                    document.getElementById('aboutStoryDesc').textContent = t.aboutStoryDesc;
-                    document.getElementById('stat1Label').textContent = t.stat1Label;
-                    document.getElementById('stat2Label').textContent = t.stat2Label;
-                    document.getElementById('stat3Label').textContent = t.stat3Label;
-                    document.getElementById('stat4Label').textContent = t.stat4Label;
-                    document.getElementById('teamTitle').innerHTML = t.teamTitle;
-                    document.getElementById('teamSub').textContent = t.teamSub;
-                    document.getElementById('team1Name').textContent = t.team1Name;
-                    document.getElementById('team1Role').textContent = t.team1Role;
-                    document.getElementById('team1Bio').textContent = t.team1Bio;
-                    document.getElementById('team2Name').textContent = t.team2Name;
-                    document.getElementById('team2Role').textContent = t.team2Role;
-                    document.getElementById('team2Bio').textContent = t.team2Bio;
-                    document.getElementById('team3Name').textContent = t.team3Name;
-                    document.getElementById('team3Role').textContent = t.team3Role;
-                    document.getElementById('team3Bio').textContent = t.team3Bio;
-                    document.getElementById('team4Name').textContent = t.team4Name;
-                    document.getElementById('team4Role').textContent = t.team4Role;
-                    document.getElementById('team4Bio').textContent = t.team4Bio;
-
-                    document.getElementById('ctaBadge').textContent = t.ctaBadge;
-                    document.getElementById('ctaTitle').innerHTML = t.ctaTitle;
-                    document.getElementById('ctaDesc').textContent = t.ctaDesc;
-                    document.getElementById('feature1Title').textContent = t.feature1Title;
-                    document.getElementById('feature1Desc').textContent = t.feature1Desc;
-                    document.getElementById('feature2Title').textContent = t.feature2Title;
-                    document.getElementById('feature2Desc').textContent = t.feature2Desc;
-                    document.getElementById('feature3Title').textContent = t.feature3Title;
-                    document.getElementById('feature3Desc').textContent = t.feature3Desc;
-                    document.getElementById('ctaBtn').textContent = t.ctaBtn;
-
-                    document.getElementById('featuredTag').textContent = t.featuredTag;
-                    document.getElementById('featuredTitle').innerHTML = t.featuredTitle;
-                    document.getElementById('featuredSub').textContent = t.featuredSub;
-                    document.getElementById('f1Title').textContent = t.f1Title;
-                    document.getElementById('f1Desc').textContent = t.f1Desc;
-                    document.getElementById('f2Title').textContent = t.f2Title;
-                    document.getElementById('f2Desc').textContent = t.f2Desc;
-                    document.getElementById('f3Title').textContent = t.f3Title;
-                    document.getElementById('f3Desc').textContent = t.f3Desc;
-
-                    document.getElementById('heritageTag').textContent = t.heritageTag;
-                    document.getElementById('heritageTitle').innerHTML = t.heritageTitle;
-                    document.getElementById('heritageSub').textContent = t.heritageSub;
-                    document.getElementById('h1Title').textContent = t.h1Title;
-                    document.getElementById('h1Desc').textContent = t.h1Desc;
-                    document.getElementById('h2Title').textContent = t.h2Title;
-                    document.getElementById('h2Desc').textContent = t.h2Desc;
-                    document.getElementById('h3Title').textContent = t.h3Title;
-                    document.getElementById('h3Desc').textContent = t.h3Desc;
-                    document.getElementById('h4Title').textContent = t.h4Title;
-                    document.getElementById('h4Desc').textContent = t.h4Desc;
-
-                    document.getElementById('servicesTag').textContent = t.servicesTag;
-                    document.getElementById('servicesTitle').innerHTML = t.servicesTitle;
-                    document.getElementById('servicesSub').textContent = t.servicesSub;
-                    document.getElementById('sTag1').textContent = t.sTag1;
-                    document.getElementById('sTitle1').textContent = t.sTitle1;
-                    document.getElementById('sDesc1').textContent = t.sDesc1;
-                    document.getElementById('sLink1').textContent = t.sLink1;
-                    document.getElementById('sTag2').textContent = t.sTag2;
-                    document.getElementById('sTitle2').textContent = t.sTitle2;
-                    document.getElementById('sDesc2').textContent = t.sDesc2;
-                    document.getElementById('sLink2').textContent = t.sLink2;
-                    document.getElementById('sTag3').textContent = t.sTag3;
-                    document.getElementById('sTitle3').textContent = t.sTitle3;
-                    document.getElementById('sDesc3').textContent = t.sDesc3;
-                    document.getElementById('sLink3').textContent = t.sLink3;
-
-                    document.getElementById('solTag').textContent = t.solTag;
-                    document.getElementById('solTitle').innerHTML = t.solTitle;
-                    document.getElementById('solSub').textContent = t.solSub;
-                    document.getElementById('sol1Title').textContent = t.sol1Title;
-                    document.getElementById('sol1Desc').textContent = t.sol1Desc;
-                    document.getElementById('sol2Title').textContent = t.sol2Title;
-                    document.getElementById('sol2Desc').textContent = t.sol2Desc;
-                    document.getElementById('sol3Title').textContent = t.sol3Title;
-                    document.getElementById('sol3Desc').textContent = t.sol3Desc;
-                    document.getElementById('sol4Title').textContent = t.sol4Title;
-                    document.getElementById('sol4Desc').textContent = t.sol4Desc;
-
-                    document.getElementById('wwTag').textContent = t.wwTag;
-                    document.getElementById('wwTitle').innerHTML = t.wwTitle;
-                    document.getElementById('wwSub').textContent = t.wwSub;
-                    document.getElementById('ww1Title').textContent = t.ww1Title;
-                    document.getElementById('ww1Desc').textContent = t.ww1Desc;
-                    document.getElementById('ww2Title').textContent = t.ww2Title;
-                    document.getElementById('ww2Desc').textContent = t.ww2Desc;
-                    document.getElementById('ww3Title').textContent = t.ww3Title;
-                    document.getElementById('ww3Desc').textContent = t.ww3Desc;
-                    document.getElementById('ww4Title').textContent = t.ww4Title;
-                    document.getElementById('ww4Desc').textContent = t.ww4Desc;
-                    document.getElementById('ww5Title').textContent = t.ww5Title;
-                    document.getElementById('ww5Desc').textContent = t.ww5Desc;
-                    document.getElementById('ww6Title').textContent = t.ww6Title;
-                    document.getElementById('ww6Desc').textContent = t.ww6Desc;
-
-                    document.getElementById('footerText').textContent = t.footerText;
-                    document.getElementById('footerCopy').textContent = t.footerCopy;
-                    document.getElementById('footerLinkedin').textContent = t.footerLinkedin;
-                    document.getElementById('footerFacebook').textContent = t.footerFacebook;
-                    document.getElementById('footerInstagram').textContent = t.footerInstagram;
-
-                    document.getElementById('contactTitle').textContent = t.contactTitle;
-                    document.getElementById('contactLabel1').textContent = t.contactLabel1;
-                    document.getElementById('contactLabel2').textContent = t.contactLabel2;
-                    document.getElementById('contactLabel3').textContent = t.contactLabel3;
-                    document.getElementById('contactBadgeText').textContent = t.contactBadgeText;
-                    document.querySelectorAll('.tap-hint').forEach(function(el) { el.textContent = t.contactHint; });
-
-                    var btnLoginAr = document.getElementById('btnLoginAr');
-                    var btnLoginEn = document.getElementById('btnLoginEn');
-                    var btnLoginKu = document.getElementById('btnLoginKu');
-                    var btnServiceAr = document.getElementById('btnServiceAr');
-                    var btnServiceEn = document.getElementById('btnServiceEn');
-                    var btnServiceKu = document.getElementById('btnServiceKu');
-
-                    if (lang === 'ar') {
-                        btnLoginAr.style.display = 'inline-flex'; btnLoginEn.style.display = 'none'; btnLoginKu.style.display = 'none';
-                        btnServiceAr.style.display = 'inline-flex'; btnServiceEn.style.display = 'none'; btnServiceKu.style.display = 'none';
-                    } else if (lang === 'en') {
-                        btnLoginAr.style.display = 'none'; btnLoginEn.style.display = 'inline-flex'; btnLoginKu.style.display = 'none';
-                        btnServiceAr.style.display = 'none'; btnServiceEn.style.display = 'inline-flex'; btnServiceKu.style.display = 'none';
-                    } else {
-                        btnLoginAr.style.display = 'none'; btnLoginEn.style.display = 'none'; btnLoginKu.style.display = 'inline-flex';
-                        btnServiceAr.style.display = 'none'; btnServiceEn.style.display = 'none'; btnServiceKu.style.display = 'inline-flex';
-                    }
-
-                    var contactPopup = document.getElementById('contactPopup');
-                    if (lang === 'ar') { contactPopup.style.direction = 'rtl'; contactPopup.className = 'contact-popup'; }
-                    else if (lang === 'ku') { contactPopup.style.direction = 'rtl'; contactPopup.className = 'contact-popup ku'; }
-                    else { contactPopup.style.direction = 'ltr'; contactPopup.className = 'contact-popup en'; }
-
-                    // Re-render archival album with new language
-                    renderArchivalTimeline(allArchivalItems);
-                }
-
-                window.switchLanguage = switchLanguage;
-
-                fetch('/api/content').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
-                    if (data) {
-                        if (data.translations) {
-                            ['ar', 'en', 'ku'].forEach(function(l) {
-                                if (data.translations[l]) Object.assign(translations[l], data.translations[l]);
-                            });
-                        }
-                        if (data.heroImages && data.heroImages.length) {
-                            data.heroImages.forEach(function(src, i) {
-                                var el = document.getElementById('heroImg' + i);
-                                if (el && src) el.src = src;
-                            });
-                        }
-                    }
-                    applyHeroContent();
-                    switchLanguage(currentLang);
-                }).catch(function() {
-                    applyHeroContent();
-                });
-
-                // Load archival album on start
-                loadArchivalAlbum();
-                });
-                </script>
-            </body>
-            """;
-
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>CONSAN® - Premium Automotive Sealing Solutions</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
-        }
 
         public static string GetExplorerPage()
         {
@@ -4007,7 +1843,7 @@ namespace ConsanWebApp
             """;
 
             string body = $$"""
-            <body data-theme="light">
+            <body>
                 <div class="pattern-bg"></div>
                 {{GetNavbarHtml()}}
 
@@ -4074,19 +1910,19 @@ namespace ConsanWebApp
                     ar: {
                         navHome:'الرئيسية', navAbout:'من نحن', navServices:'خدماتنا', navIndustrial:'خدمات صناعية', navExplorer:'المستكشف', navGuide:'الدليل الشامل',
                         explorerTag:'استكشف', explorerTitle:'المستكشف <span class="highlight">التقني</span>', explorerSub:'تعرف على أحدث التقنيات والأدوات والقدرات الصناعية في ورشة الفرات الأوسط',
-                        footerText:'جوانات عالية الجودة وحلول إحكام للسيارات منذ 1980', footerCopy:'© 2026 CONSAN®. جميع الحقوق محفوظة',
+                        footerText:'', footerCopy:'',
                         contactTitle:'أرقام التواصل', contactLabel1:'ابو مصطفى', contactLabel2:'ابو رضا', contactLabel3:'ابو علي', contactBadgeText:'تواصل معنا'
                     },
                     en: {
                         navHome:'Home', navAbout:'About', navServices:'Our Services', navIndustrial:'Industrial Services', navExplorer:'Explorer', navGuide:'Comprehensive Guide',
                         explorerTag:'Explore', explorerTitle:'Technical <span class="highlight">Explorer</span>', explorerSub:'Discover the latest technologies, tools, and industrial capabilities at Middle Euphrates Workshop',
-                        footerText:'Premium quality cylinder head gaskets and automotive sealing solutions since 1980', footerCopy:'© 2026 CONSAN®. All rights reserved',
+                        footerText:'', footerCopy:'',
                         contactTitle:'Contact Numbers', contactLabel1:'Abu Mustafa', contactLabel2:'Abu Reda', contactLabel3:'Abu Ali', contactBadgeText:'Contact Us'
                     },
                     ku: {
                         navHome:'ماڵەوە', navAbout:'دەربارە', navServices:'خزمەتەکانمان', navIndustrial:'خزمەتی پیشەسازی', navExplorer:'گەڕان', navGuide:'ڕێنمایی گشتگیر',
                         explorerTag:'بگەڕێ', explorerTitle:'گەڕانی <span class="highlight">تەکنیکی</span>', explorerSub:'نوێترین تەکنەلۆژیا و ئامێر و تواناکانی پیشەسازی لە کارگەی ناوەڕاستی فورات بناسە',
-                        footerText:'گاسکێتی کوالیتی باڵا و چارەسەری گاسکێتی ئوتومبێل لە 1980', footerCopy:'© 2026 CONSAN®. هەموو مافێک پارێزراوە',
+                        footerText:'', footerCopy:'',
                         contactTitle:'ژمارەکانی پەیوەندی', contactLabel1:'ئەبوو مستەفا', contactLabel2:'ئەبوو ڕەزا', contactLabel3:'ئەبوو عەلی', contactBadgeText:'پەیوەندیمان پێوەبکە'
                     }
                 };
@@ -4135,7 +1971,7 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>المستكشف - ورشة الفرات الأوسط</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
+            return PageShell("المستكشف | ورشة الفرات الأوسط — ME Workshop", css, body);
         }
 
         public static string GetGuidePage()
@@ -4280,7 +2116,7 @@ namespace ConsanWebApp
             """;
 
             string body = $$"""
-            <body data-theme="light">
+            <body>
                 <div class="pattern-bg"></div>
                 {{GetNavbarHtml()}}
 
@@ -4459,7 +2295,7 @@ namespace ConsanWebApp
                         guideTag:'دليل شامل', guideTitle:'الدليل <span class="highlight">الشامل</span>', guideSub:'دليل تفصيلي عن أقسام الورشة، مواصفات المعدات، معايير السلامة، وسير العمل',
                         guideDeptTitle:'أقسام الورشة', guideSpecsTitle:'مواصفات المعدات والآلات', guideSafetyTitle:'معايير السلامة المهنية', guideFlowTitle:'سير العمل والخدمات',
                         guideSpecsColMachine:'المعدة', guideSpecsColSpec:'المواصفات', guideSpecsColUse:'الاستخدام',
-                        footerText:'جوانات عالية الجودة وحلول إحكام للسيارات منذ 1980', footerCopy:'© 2026 CONSAN®. جميع الحقوق محفوظة',
+                        footerText:'', footerCopy:'',
                         contactTitle:'أرقام التواصل', contactLabel1:'ابو مصطفى', contactLabel2:'ابو رضا', contactLabel3:'ابو علي', contactBadgeText:'تواصل معنا'
                     },
                     en: {
@@ -4467,7 +2303,7 @@ namespace ConsanWebApp
                         guideTag:'Comprehensive Guide', guideTitle:'The <span class="highlight">Comprehensive</span> Guide', guideSub:'A detailed guide covering workshop departments, equipment specifications, safety standards, and service workflows',
                         guideDeptTitle:'Workshop Departments', guideSpecsTitle:'Machinery & Equipment Specifications', guideSafetyTitle:'Occupational Safety Standards', guideFlowTitle:'Service Workflow',
                         guideSpecsColMachine:'Machine', guideSpecsColSpec:'Specifications', guideSpecsColUse:'Usage',
-                        footerText:'Premium quality cylinder head gaskets and automotive sealing solutions since 1980', footerCopy:'© 2026 CONSAN®. All rights reserved',
+                        footerText:'', footerCopy:'',
                         contactTitle:'Contact Numbers', contactLabel1:'Abu Mustafa', contactLabel2:'Abu Reda', contactLabel3:'Abu Ali', contactBadgeText:'Contact Us'
                     },
                     ku: {
@@ -4475,7 +2311,7 @@ namespace ConsanWebApp
                         guideTag:'ڕێنمایی گشتگیر', guideTitle:'ڕێنمایی <span class="highlight">گشتگیر</span>', guideSub:'ڕێنماییەکی ورد دەربارەی بەشەکانی کارگە، تایبەتمەندی ئامێرەکان، ستانداردەکانی سەلامەتی، و پرۆسەی کارکردن',
                         guideDeptTitle:'بەشەکانی کارگە', guideSpecsTitle:'تایبەتمەندی ئامێر و کەرەستەکان', guideSafetyTitle:'ستانداردەکانی سەلامەتی پیشەیی', guideFlowTitle:'پرۆسەی کار و خزمەتگوزاری',
                         guideSpecsColMachine:'ئامێر', guideSpecsColSpec:'تایبەتمەندییەکان', guideSpecsColUse:'بەکارهێنان',
-                        footerText:'گاسکێتی کوالیتی باڵا و چارەسەری گاسکێتی ئوتومبێل لە 1980', footerCopy:'© 2026 CONSAN®. هەموو مافێک پارێزراوە',
+                        footerText:'', footerCopy:'',
                         contactTitle:'ژمارەکانی پەیوەندی', contactLabel1:'ئەبوو مستەفا', contactLabel2:'ئەبوو ڕەزا', contactLabel3:'ئەبوو عەلی', contactBadgeText:'پەیوەندیمان پێوەبکە'
                     }
                 };
@@ -4547,14 +2383,14 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>الدليل الشامل - ورشة الفرات الأوسط</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
+            return PageShell("الدليل الشامل | ورشة الفرات الأوسط — ME Workshop", css, body);
         }
 
         public static string GetLoginPage()
         {
             string css = GetSharedStyles();
             string body = $$"""
-            <body data-theme="light">
+            <body>
                 <div class="pattern-bg"></div>
                 {{GetNavbarHtml()}}
 
@@ -4730,14 +2566,14 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>تسجيل الدخول - CONSAN®</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
+            return PageShell("دخول الإدارة | ورشة الفرات الأوسط — ME Workshop", css, body);
         }
 
         public static string GetServiceRequestPage()
         {
             string css = GetSharedStyles();
             string body = $$"""
-            <body data-theme="light">
+            <body>
                 <div class="pattern-bg"></div>
                 {{GetNavbarHtml()}}
 
@@ -4872,7 +2708,7 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>اطلب خدمة - CONSAN®</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
+            return PageShell("اطلب خدمة | ورشة الفرات الأوسط — ME Workshop", css, body);
         }
 
         // =========================================================
@@ -5082,12 +2918,13 @@ namespace ConsanWebApp
             """;
 
             string body = $$"""
-            <body data-theme="light">
+            <body>
                 <div class="pattern-bg"></div>
                 {{GetNavbarHtml()}}
 
-                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <link rel="stylesheet" href="/me/leaflet/leaflet.css" />
+                <script src="/me/leaflet/leaflet.js"></script>
+                <script src="/me/maps.js"></script>
 
                 <section class="ind-top-section">
                     <div class="container">
@@ -5159,7 +2996,7 @@ namespace ConsanWebApp
                         <div class="section-header">
                             <span class="section-tag" id="indHighlightsTag">خدماتنا</span>
                             <h2 class="section-title" id="indHighlightsTitle">ما نقدمه في <span class="highlight">ورشة الفرات الأوسط</span></h2>
-                            <p class="section-subtitle" id="indHighlightsSub">حلول صناعية متكاملة بخبرة تمتد لأكثر من 40 عاماً</p>
+                            <p class="section-subtitle" id="indHighlightsSub">حلول صناعية متكاملة من ورشة تعمل منذ عام 1945</p>
                         </div>
                         <div class="ind-highlights-grid">
                             <div class="ind-highlight-card">
@@ -5232,7 +3069,7 @@ namespace ConsanWebApp
                         indSearchPlaceholder:'ابحث عن الاسم، العنوان، أو رقم الهاتف...', indSearchBtn:'بحث',
                         indColName:'القسم / الاسم', indColAddress:'العنوان', indColPhone:'رقم الهاتف',
                         indHoursNote:'ساعات العمل: يومياً من السبت إلى الخميس، 8 صباحاً حتى 6 مساءً',
-                        indHighlightsTag:'خدماتنا', indHighlightsTitle:'ما نقدمه في <span class="highlight">ورشة الفرات الأوسط</span>', indHighlightsSub:'حلول صناعية متكاملة بخبرة تمتد لأكثر من 40 عاماً',
+                        indHighlightsTag:'خدماتنا', indHighlightsTitle:'ما نقدمه في <span class="highlight">ورشة الفرات الأوسط</span>', indHighlightsSub:'حلول صناعية متكاملة من ورشة تعمل منذ عام 1945',
                         indHl1Title:'استجابة سريعة', indHl1Desc:'فريق جاهز لاستقبال طلباتكم ومعالجتها بأسرع وقت ممكن',
                         indHl2Title:'معدات متطورة', indHl2Desc:'نستخدم أحدث المخارط وأجهزة الفحص لضمان الدقة في كل عمل',
                         indHl3Title:'جودة مضمونة', indHl3Desc:'جميع أعمالنا الصناعية مضمونة بأعلى معايير الجودة العالمية',
@@ -5252,7 +3089,7 @@ namespace ConsanWebApp
                         indSearchPlaceholder:'Search by name, address, or phone number...', indSearchBtn:'Search',
                         indColName:'Department / Name', indColAddress:'Address', indColPhone:'Phone Number',
                         indHoursNote:'Working Hours: Daily Saturday to Thursday, 8:00 AM - 6:00 PM',
-                        indHighlightsTag:'Our Services', indHighlightsTitle:'What We Offer at <span class="highlight">Middle Euphrates Workshop</span>', indHighlightsSub:'Comprehensive industrial solutions backed by over 40 years of experience',
+                        indHighlightsTag:'Our Services', indHighlightsTitle:'What We Offer at <span class="highlight">Middle Euphrates Workshop</span>', indHighlightsSub:'Comprehensive industrial solutions from a workshop at work since 1945',
                         indHl1Title:'Fast Response', indHl1Desc:'A ready team to receive and process your requests as quickly as possible',
                         indHl2Title:'Advanced Equipment', indHl2Desc:'We use the latest lathes and diagnostic tools to ensure precision in every job',
                         indHl3Title:'Guaranteed Quality', indHl3Desc:'All our industrial work is guaranteed to the highest global quality standards',
@@ -5272,7 +3109,7 @@ namespace ConsanWebApp
                         indSearchPlaceholder:'بگەڕێ بەدوای ناو، ناونیشان، یان ژمارەی مۆبایلدا...', indSearchBtn:'گەڕان',
                         indColName:'بەش / ناو', indColAddress:'ناونیشان', indColPhone:'ژمارەی مۆبایل',
                         indHoursNote:'کاتەکانی کار: ڕۆژانە لە شەممە تا پێنجشەممە، 8ی بەیانی - 6ی ئێوارە',
-                        indHighlightsTag:'خزمەتەکانمان', indHighlightsTitle:'ئێمە چی پێشکەش دەکەین لە <span class="highlight">کارگەی ناوەڕاستی فورات</span>', indHighlightsSub:'چارەسەری پیشەسازی گشتگیر بە ئەزموونی زیاتر لە 40 ساڵ',
+                        indHighlightsTag:'خزمەتەکانمان', indHighlightsTitle:'ئێمە چی پێشکەش دەکەین لە <span class="highlight">کارگەی ناوەڕاستی فورات</span>', indHighlightsSub:'چارەسەری پیشەسازی گشتگیر لە کارگەیەک کە لە 1945ـەوە کار دەکات',
                         indHl1Title:'وەڵامدانەوەی خێرا', indHl1Desc:'تیپێکی ئامادە بۆ وەرگرتن و چارەسەرکردنی داواکارییەکانتان بە خێراترین کات',
                         indHl2Title:'ئامێری پێشکەوتوو', indHl2Desc:'نوێترین خەرادە و ئامێرەکانی پشکنین بەکاردەهێنین بۆ دڵنیابوون لە وردی',
                         indHl3Title:'کوالیتی دڵنیاکراو', indHl3Desc:'هەموو کارە پیشەسازییەکانمان دڵنیاکراون بە بەرزترین ستانداردی جیهانی کوالیتی',
@@ -5290,15 +3127,10 @@ namespace ConsanWebApp
 
                 // ---- Google Maps Layers ----
                 function createGoogleLayer(layerType, label) {
-                    var url = 'https://{s}.google.com/vt/lyrs=' + layerType + '&x={x}&y={y}&z={z}';
-                    return L.tileLayer(url, {
-                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                        maxZoom: 20,
-                        label: label
-                    });
+                    return MEMaps.layer(layerType, label);
                 }
 
-                var googleRoadmap = createGoogleLayer('m', 'خرائط جوجل العادية');
+                var googleRoadmap = createGoogleLayer('m', 'خريطة الشوارع');
                 var googleSatellite = createGoogleLayer('s', 'الصور الفضائية / الأقمار الصناعية');
                 var googleHybrid = createGoogleLayer('y', 'الخريطة الهجينة');
                 var googleTerrain = createGoogleLayer('p', 'التضاريس');
@@ -5307,16 +3139,14 @@ namespace ConsanWebApp
                 function initMainMap() {
                     if (mainMap) return;
                     mainMap = L.map('map', {
-                        center: [32.0, 44.33],
-                        zoom: 13,
+                        center: MEMaps.center,
+                        zoom: 16,
                         layers: [googleRoadmap]
                     });
 
                     var baseMaps = {
-                        'خرائط جوجل العادية': googleRoadmap,
+                        'خريطة الشوارع': googleRoadmap,
                         'الصور الفضائية': googleSatellite,
-                        'الخريطة الهجينة': googleHybrid,
-                        'التضاريس': googleTerrain
                     };
                     layerControl = L.control.layers(baseMaps, null, {
                         position: 'topright',
@@ -5329,16 +3159,14 @@ namespace ConsanWebApp
                 function initModalMap() {
                     if (modalMap) return;
                     modalMap = L.map('modalMap', {
-                        center: [32.0, 44.33],
-                        zoom: 13,
+                        center: MEMaps.center,
+                        zoom: 16,
                         layers: [googleRoadmap]
                     });
 
                     var baseMapsModal = {
-                        'خرائط جوجل العادية': googleRoadmap,
+                        'خريطة الشوارع': googleRoadmap,
                         'الصور الفضائية': googleSatellite,
-                        'الخريطة الهجينة': googleHybrid,
-                        'التضاريس': googleTerrain
                     };
                     L.control.layers(baseMapsModal, null, {
                         position: 'topright',
@@ -5374,7 +3202,7 @@ namespace ConsanWebApp
                         markers[pin.id].remove();
                         delete markers[pin.id];
                     }
-                    var popupContent = '<strong>' + pinDisplayName(pin) + '</strong><br>' + pinDisplayAddress(pin) + '<br>📞 ' + (pin.phone || '-');
+                    var popupContent = '<strong>' + pinDisplayName(pin) + '</strong><br>' + pinDisplayAddress(pin) + '<br>' + (pin.phone || '-');
                     var marker = L.marker([pin.latitude, pin.longitude])
                         .addTo(baseLayerGroup)
                         .bindPopup(popupContent);
@@ -5484,7 +3312,7 @@ namespace ConsanWebApp
                         initModalMap();
                         if (modalMap) {
                             modalMap.invalidateSize();
-                            modalMap.setView([32.0, 44.33], 13);
+                            modalMap.setView(MEMaps.center, 16);
                             if (modalMarker) {
                                 modalMarker.remove();
                                 modalMarker = null;
@@ -5612,7 +3440,7 @@ namespace ConsanWebApp
                     if (layerControl) {
                         var baseMaps = {};
                         if (lang === 'ar') {
-                            baseMaps['خرائط جوجل العادية'] = googleRoadmap;
+                            baseMaps['خريطة الشوارع'] = googleRoadmap;
                             baseMaps['الصور الفضائية'] = googleSatellite;
                             baseMaps['الخريطة الهجينة'] = googleHybrid;
                             baseMaps['التضاريس'] = googleTerrain;
@@ -5639,7 +3467,7 @@ namespace ConsanWebApp
                     if (mainMap) {
                         mapPins.forEach(function(pin) {
                             if (markers[pin.id]) {
-                                var popupContent = '<strong>' + pinDisplayName(pin) + '</strong><br>' + pinDisplayAddress(pin) + '<br>📞 ' + (pin.phone || '-');
+                                var popupContent = '<strong>' + pinDisplayName(pin) + '</strong><br>' + pinDisplayAddress(pin) + '<br>' + (pin.phone || '-');
                                 markers[pin.id].bindPopup(popupContent);
                             }
                         });
@@ -5685,124 +3513,7 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>الخدمات الصناعية - ورشة الفرات الأوسط</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
-        }
-
-        public static string GetAboutPage()
-        {
-            return @"<!DOCTYPE html>
-<html lang=""en"">
-<head>
-    <meta charset=""utf-8"" />
-    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-    <title>About - CONSAN®</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1a1a1a; background: #ffffff; min-height: 100vh; }
-        .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
-        .about-header { background: #f8f8f8; padding: 60px 0 40px; border-bottom: 4px solid #FFD700; position: relative; overflow: hidden; }
-        .about-header-content { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 30px; }
-        .about-header-text h1 { font-size: 3.2rem; color: #1a1a1a; font-weight: 700; margin-bottom: 10px; }
-        .about-header-text h1 span { color: #FFD700; }
-        .about-header-text p { font-size: 1.15rem; color: #555555; max-width: 550px; }
-        .brand-icon { font-size: 6rem; color: #FFD700; text-align: center; line-height: 1; }
-        .back-link { display: inline-block; margin: 20px 20px 0; color: #1a1a1a; text-decoration: none; font-weight: 600; padding: 10px 20px; background: #ffffff; border-radius: 8px; border: 1px solid #FFD700; }
-        .back-link:hover { color: #ffffff; background: #FFD700; }
-        .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 40px 0; }
-        .about-card { background: #f8f8f8; padding: 30px 35px; border-radius: 16px; border: 1px solid #FFD700; transition: all 0.3s ease; }
-        .about-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,215,0,0.12); border-color: #FFD700; }
-        .about-card .icon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
-        .about-card h3 { color: #1a1a1a; font-size: 1.3rem; margin-bottom: 10px; }
-        .about-card p { color: #444444; font-size: 0.98rem; line-height: 1.7; }
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 40px 0; }
-        .stat-item { background: #f8f8f8; padding: 25px 20px; text-align: center; border-radius: 12px; border: 1px solid #e0e0e0; }
-        .stat-item:hover { border-color: #FFD700; transform: scale(1.02); }
-        .stat-number { font-size: 2.2rem; font-weight: 700; color: #FFD700; }
-        .stat-label { font-size: 0.85rem; color: #555555; margin-top: 4px; }
-        .team-section { margin: 50px 0 30px; }
-        .team-section h2 { font-size: 2.2rem; color: #1a1a1a; text-align: center; margin-bottom: 10px; }
-        .team-section h2 span { color: #FFD700; }
-        .team-section .subtitle { text-align: center; color: #777777; font-size: 1.05rem; margin-bottom: 35px; }
-        .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; }
-        .team-member { background: #f8f8f8; border-radius: 16px; padding: 25px 20px; text-align: center; border: 1px solid #e0e0e0; }
-        .team-member:hover { border-color: #FFD700; transform: translateY(-6px); box-shadow: 0 12px 40px rgba(255,215,0,0.08); }
-        .team-member .avatar { font-size: 4rem; display: block; margin-bottom: 10px; }
-        .team-member h4 { color: #1a1a1a; font-size: 1.1rem; }
-        .team-member .role { color: #FFD700; font-size: 0.85rem; font-weight: 600; }
-        .team-member .bio { color: #777777; font-size: 0.85rem; margin-top: 8px; }
-        @media (max-width: 992px) { .about-header-content { flex-direction: column; text-align: center; } .about-grid { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 768px) { .about-header-text h1 { font-size: 2.4rem; } .stats-grid { grid-template-columns: 1fr 1fr; } .team-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 480px) { .about-header-text h1 { font-size: 1.8rem; } .container { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } .team-grid { grid-template-columns: 1fr; } }
-    </style>
-</head>
-<body>
-    <header class=""about-header"">
-        <div class=""about-header-content"">
-            <div class=""about-header-text"">
-                <h1>About <span>CONSAN®</span></h1>
-                <p>Premium quality cylinder head gaskets and automotive sealing solutions since 1980.</p>
-                <a href=""/"" class=""back-link"">&larr; Back to Home</a>
-            </div>
-            <div class=""brand-icon"">&#9881;</div>
-        </div>
-    </header>
-    <div class=""container"">
-        <div class=""about-grid"">
-            <div class=""about-card""><span class=""icon"">&#128295;</span><h3>Our Mission</h3><p>To deliver premium quality automotive sealing solutions that ensure engine reliability and performance worldwide.</p></div>
-            <div class=""about-card""><span class=""icon"">&#127941;</span><h3>Our Vision</h3><p>To be the global leader in cylinder head gasket manufacturing, setting the standard for quality and innovation.</p></div>
-            <div class=""about-card""><span class=""icon"">&#11088;</span><h3>Our Values</h3><p><strong>Quality</strong> &#8212; Precision engineering. <strong>Reliability</strong> &#8212; Trusted by professionals. <strong>Innovation</strong> &#8212; Continuous improvement.</p></div>
-            <div class=""about-card""><span class=""icon"">&#128214;</span><h3>Our Story</h3><p>Founded in 1980, CONSAN® has been at the forefront of automotive sealing technology, serving customers in over 50 countries.</p></div>
-        </div>
-        <div class=""stats-grid"">
-            <div class=""stat-item""><div class=""stat-number"">45+</div><div class=""stat-label"">Years of Excellence</div></div>
-            <div class=""stat-item""><div class=""stat-number"">50+</div><div class=""stat-label"">Countries Served</div></div>
-            <div class=""stat-item""><div class=""stat-number"">1000+</div><div class=""stat-label"">Products Manufactured</div></div>
-            <div class=""stat-item""><div class=""stat-number"">99%</div><div class=""stat-label"">Customer Satisfaction</div></div>
-        </div>
-        <section class=""team-section"">
-            <h2>Our <span>Expert</span> Team</h2>
-            <p class=""subtitle"">The professionals behind our premium quality products</p>
-            <div class=""team-grid"">
-                <div class=""team-member""><span class=""avatar"">&#128104;</span><h4>Ahmet Yılmaz</h4><div class=""role"">CEO & Founder</div><p class=""bio"">40+ years in automotive sealing</p></div>
-                <div class=""team-member""><span class=""avatar"">&#128104;</span><h4>Mehmet Demir</h4><div class=""role"">Head of Engineering</div><p class=""bio"">Expert in precision manufacturing</p></div>
-                <div class=""team-member""><span class=""avatar"">&#128105;</span><h4>Ayşe Kaya</h4><div class=""role"">Quality Control Manager</div><p class=""bio"">Ensuring premium quality standards</p></div>
-                <div class=""team-member""><span class=""avatar"">&#128104;</span><h4>Mustafa Öz</h4><div class=""role"">Production Director</div><p class=""bio"">Overseeing manufacturing excellence</p></div>
-            </div>
-        </section>
-    </div>
-</body>
-</html>";
-        }
-
-        public static string GetPhoneNumbersPage()
-        {
-            return @"<!DOCTYPE html>
-<html>
-<head><title>Phone Numbers - CONSAN®</title>
-<style>
-body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background: #ffffff; color: #1a1a1a; }
-.container { max-width: 800px; margin: 0 auto; background: #f8f8f8; padding: 30px; border-radius: 10px; border: 1px solid #FFD700; box-shadow: 0 4px 20px rgba(255,215,0,0.08); }
-h1 { color: #1a1a1a; }
-h1 span { color: #FFD700; }
-ul { list-style: none; padding: 0; }
-li { padding: 10px; border-bottom: 1px solid #e8e8e8; color: #333333; }
-.phone-label { font-weight: bold; color: #FFD700; }
-a { color: #1a1a1a; text-decoration: none; font-weight: 500; }
-a:hover { text-decoration: underline; color: #FFD700; }
-</style>
-</head>
-<body>
-<div class='container'>
-    <h1>&#128222; <span>Phone</span> Numbers</h1>
-    <ul>
-        <li><span class='phone-label'>Main:</span> (123) 456-7890</li>
-        <li><span class='phone-label'>Support:</span> (987) 654-3210</li>
-        <li><span class='phone-label'>Sales:</span> (555) 123-4567</li>
-    </ul>
-    <a href=""/"">&larr; Back to Home</a>
-</div>
-</body>
-</html>";
+            return PageShell("الخدمات الصناعية | ورشة الفرات الأوسط — ME Workshop", css, body);
         }
 
         // =========================================================
@@ -6244,7 +3955,7 @@ a:hover { text-decoration: underline; color: #FFD700; }
 
                 <div id="dashboard" class="hidden">
                     <header class="admin-header">
-                        <h1>لوحة تحكم CONSAN®</h1>
+                        <h1>لوحة تحكم ورشة الفرات الأوسط</h1>
                         <div class="actions">
                             <!-- ===== بيانات الحساب الحالي (دائماً ظاهرة) ===== -->
                             <div id="headerAccountInfo" style="display:none;align-items:center;gap:8px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:50px;padding:6px 14px;">
@@ -6668,8 +4379,9 @@ a:hover { text-decoration: underline; color: #FFD700; }
                     </div>
                 </div>
 
-                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <link rel="stylesheet" href="/me/leaflet/leaflet.css" />
+                <script src="/me/leaflet/leaflet.js"></script>
+                <script src="/me/maps.js"></script>
 
                 <script>
                 var contentData = { translations: { ar: {}, en: {}, ku: {} }, heroImages: [] };
@@ -7077,15 +4789,10 @@ a:hover { text-decoration: underline; color: #FFD700; }
 
                 // ---- ADMIN MAP ----
                 function createGoogleLayer(layerType, label) {
-                    var url = 'https://{s}.google.com/vt/lyrs=' + layerType + '&x={x}&y={y}&z={z}';
-                    return L.tileLayer(url, {
-                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                        maxZoom: 20,
-                        label: label
-                    });
+                    return MEMaps.layer(layerType, label);
                 }
 
-                var adminGoogleRoadmap = createGoogleLayer('m', 'خرائط جوجل العادية');
+                var adminGoogleRoadmap = createGoogleLayer('m', 'خريطة الشوارع');
                 var adminGoogleSatellite = createGoogleLayer('s', 'الصور الفضائية');
                 var adminGoogleHybrid = createGoogleLayer('y', 'الخريطة الهجينة');
                 var adminGoogleTerrain = createGoogleLayer('p', 'التضاريس');
@@ -7096,13 +4803,13 @@ a:hover { text-decoration: underline; color: #FFD700; }
                         return;
                     }
                     adminMap = L.map('adminMap', {
-                        center: [32.0, 44.33],
-                        zoom: 13,
+                        center: MEMaps.center,
+                        zoom: 16,
                         layers: [adminGoogleRoadmap]
                     });
 
                     var baseMaps = {
-                        'خرائط جوجل العادية': adminGoogleRoadmap,
+                        'خريطة الشوارع': adminGoogleRoadmap,
                         'الصور الفضائية': adminGoogleSatellite,
                         'الخريطة الهجينة': adminGoogleHybrid,
                         'التضاريس': adminGoogleTerrain
@@ -7144,7 +4851,7 @@ a:hover { text-decoration: underline; color: #FFD700; }
                             });
 
                             var modalBaseMaps = {
-                                'خرائط جوجل العادية': adminGoogleRoadmap,
+                                'خريطة الشوارع': adminGoogleRoadmap,
                                 'الصور الفضائية': adminGoogleSatellite,
                                 'الخريطة الهجينة': adminGoogleHybrid,
                                 'التضاريس': adminGoogleTerrain
@@ -7265,7 +4972,7 @@ a:hover { text-decoration: underline; color: #FFD700; }
                             // Add marker to admin map
                             if (adminBaseLayerGroup) {
                                 if (adminMarkers[pin.id]) { adminMarkers[pin.id].remove(); }
-                                var popupContent = '<strong>' + escapeHtml(pin.nameAr || pin.nameEn) + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>📞 ' + escapeHtml(pin.phone || '-');
+                                var popupContent = '<strong>' + escapeHtml(pin.nameAr || pin.nameEn) + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-');
                                 var marker = L.marker([pin.latitude, pin.longitude])
                                     .addTo(adminBaseLayerGroup)
                                     .bindPopup(popupContent);
@@ -7314,7 +5021,7 @@ a:hover { text-decoration: underline; color: #FFD700; }
                                 });
                                 var marker = L.marker([pin.latitude, pin.longitude], { icon: pendingIcon })
                                     .addTo(adminPendingLayerGroup)
-                                    .bindPopup('<strong>' + escapeHtml(pin.nameAr || pin.nameEn || '') + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>📞 ' + escapeHtml(pin.phone || '-') + '<br><em style="color:#ffb86b;">⏳ بانتظار الموافقة</em>');
+                                    .bindPopup('<strong>' + escapeHtml(pin.nameAr || pin.nameEn || '') + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-') + '<br><em style="color:#ffb86b;">⏳ بانتظار الموافقة</em>');
                             }
                         });
                     }).catch(function() { });
@@ -7885,7 +5592,7 @@ a:hover { text-decoration: underline; color: #FFD700; }
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - CONSAN®</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
+            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
         }
     }
 }
