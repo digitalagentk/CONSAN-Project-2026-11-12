@@ -151,6 +151,7 @@ namespace ConsanWebApp
 
             app.UseDefaultFiles();
             app.UseStaticFiles();
+            GalleryFeature.UseGalleryFiles(app);
 
             // ⚠️ مهم: UseAuthentication و UseAuthorization قبل الـ endpoints
             app.UseAuthentication();
@@ -180,6 +181,9 @@ namespace ConsanWebApp
             app.MapGet("/explorer", () => Results.Content(Pages.GetExplorerPage(), "text/html; charset=utf-8"));
             app.MapGet("/guide", () => Results.Content(Pages.GetGuidePage(), "text/html; charset=utf-8"));
             app.MapGet("/admin", () => Results.Content(Pages.GetAdminPage(), "text/html; charset=utf-8"));
+            GalleryFeature.MapGallery(app);
+            BillingFeature.MapBilling(app);
+            VisitorFeature.MapVisitors(app);
 
             // Anything else falls back to the home page
             app.MapFallback(() => Results.Content(Pages.GetHomePage(), "text/html; charset=utf-8"));
@@ -291,13 +295,19 @@ namespace ConsanWebApp
             // =========================================================
             // ====================  MAP PINS (public submit)  =============
             // =========================================================
+            // Visitors can only suggest a location: it is stored as pending and stays off the
+            // public map until a Manager or Admin approves it in the dashboard.
             app.MapPost("/api/map-pins/submit", async (HttpContext ctx) =>
             {
                 var pin = await Store.ReadMapPin(ctx);
                 if (pin == null) return Results.Json(new { success = false, message = "invalid body" }, statusCode: 400);
+                string err = Store.ValidatePin(pin);
+                if (err != null) return Results.Json(new { success = false, message = err }, statusCode: 400);
+                if (!Store.AllowPinSubmission(ctx)) return Results.Json(new { success = false, message = "تم إرسال عدد كبير من الطلبات، حاول لاحقاً" }, statusCode: 429);
                 pin.IsApproved = false;
+                pin.IsWorkshop = false;
                 var item = Store.AddMapPin(pin);
-                return Results.Json(new { success = true, id = item.Id });
+                return Results.Json(new { success = true, pending = true, id = item.Id });
             });
 
             // =========================================================
@@ -448,35 +458,38 @@ namespace ConsanWebApp
             // =========================================================
             app.MapGet("/api/admin/map-pins", (HttpContext ctx) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 return Results.Json(Store.GetAllMapPins());
             });
 
             app.MapGet("/api/admin/map-pins/pending", (HttpContext ctx) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 return Results.Json(Store.GetPendingMapPins());
             });
 
             app.MapGet("/api/admin/map-pins/approved", (HttpContext ctx) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 return Results.Json(Store.GetApprovedMapPins());
             });
 
             app.MapPost("/api/admin/map-pins", async (HttpContext ctx) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var pin = await Store.ReadMapPin(ctx);
                 if (pin == null) return Results.Json(new { message = "invalid body" }, statusCode: 400);
-                pin.IsApproved = true;
+                string err = Store.ValidatePin(pin);
+                if (err != null) return Results.Json(new { message = err }, statusCode: 400);
+                pin.IsApproved = true;   // added by staff: already approved
+                pin.IsWorkshop = false;
                 var item = Store.AddMapPin(pin);
                 return Results.Json(new { success = true, id = item.Id });
             });
 
             app.MapPut("/api/admin/map-pins/{id}", async (HttpContext ctx, string id) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var pin = await Store.ReadMapPin(ctx);
                 if (pin == null) return Results.Json(new { message = "invalid body" }, statusCode: 400);
                 var ok = Store.UpdateMapPin(id, pin);
@@ -485,14 +498,15 @@ namespace ConsanWebApp
 
             app.MapPut("/api/admin/map-pins/{id}/approve", (HttpContext ctx, string id) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var ok = Store.ApproveMapPin(id);
                 return ok ? Results.Json(new { success = true }) : Results.Json(new { message = "not found" }, statusCode: 404);
             });
 
             app.MapDelete("/api/admin/map-pins/{id}", (HttpContext ctx, string id) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (Store.IsWorkshopPin(id)) return Results.Json(new { message = "موقع الورشة الرئيسي لا يُحذف، يمكن تعديله فقط" }, statusCode: 400);
                 var ok = Store.DeleteMapPin(id);
                 return ok ? Results.Json(new { success = true }) : Results.Json(new { message = "not found" }, statusCode: 404);
             });
@@ -683,6 +697,7 @@ namespace ConsanWebApp
         public double Longitude { get; set; }
         public string MapEmbedUrl { get; set; } = "";
         public bool IsApproved { get; set; } = false;
+        public bool IsWorkshop { get; set; } = false;   // the workshop itself: always shown, listed first, cannot be deleted
         public string SubmittedAt { get; set; } = DateTime.UtcNow.ToString("o");
     }
 
@@ -1083,11 +1098,82 @@ namespace ConsanWebApp
         // Map pins
         // ---------------------------------------------------------------
 
+        // The workshop comes first, then the rest in the order they were added.
+        private static List<MapPin> Ordered(IEnumerable<MapPin> pins)
+        {
+            return pins.OrderByDescending(p => p.IsWorkshop).ThenBy(p => p.Id).ToList();
+        }
+
+        // Makes sure the workshop's own location exists (added once, on the first run after this update).
+        private static void EnsureWorkshopPin()
+        {
+            if (_mapPins.Any(p => p.IsWorkshop)) return;
+            _mapPins.Add(new MapPin
+            {
+                Id = _mapPins.Count > 0 ? _mapPins.Max(p => p.Id) + 1 : 1,
+                NameAr = "ورشة الفرات الأوسط (ME Workshop)",
+                NameEn = "ME Workshop — Middle Euphrates Workshop",
+                NameKu = "کارگەی فوراتی ناوەڕاست (ME Workshop)",
+                AddressAr = "النجف الأشرف، الحي الصناعي، منتصف شارع إعدادية الصناعة، مقابل جامعة الكوفة",
+                AddressEn = "Najaf, Industrial District, middle of Industrial High School Street, opposite the University of Kufa",
+                AddressKu = "نەجەف، گەڕەکی پیشەسازی، ناوەڕاستی شەقامی ئامادەیی پیشەسازی، بەرامبەر زانکۆی کووفە",
+                Phone = Pages.Phones[0][1],
+                Latitude = Pages.WorkshopPin[0],
+                Longitude = Pages.WorkshopPin[1],
+                IsApproved = true,
+                IsWorkshop = true,
+                SubmittedAt = DateTime.UtcNow.ToString("o")
+            });
+            Persist(MapPinsPath, _mapPins);
+        }
+
+        public static bool IsWorkshopPin(string id)
+        {
+            lock (MapPinsLock)
+            {
+                return int.TryParse(id, out int n) && _mapPins.Any(p => p.Id == n && p.IsWorkshop);
+            }
+        }
+
+        // Basic checks so the map only ever gets sensible entries.
+        public static string? ValidatePin(MapPin pin)
+        {
+            pin.NameAr = (pin.NameAr ?? "").Trim();
+            if (pin.NameAr.Length == 0 && !string.IsNullOrWhiteSpace(pin.NameEn)) pin.NameAr = pin.NameEn.Trim();
+            if (pin.NameAr.Length == 0) return "اسم الموقع مطلوب";
+            if (pin.NameAr.Length > 80 || (pin.NameEn ?? "").Length > 80 || (pin.NameKu ?? "").Length > 80) return "الاسم طويل جداً";
+            if ((pin.AddressAr ?? "").Length > 200 || (pin.AddressEn ?? "").Length > 200 || (pin.AddressKu ?? "").Length > 200) return "العنوان طويل جداً";
+            if ((pin.Phone ?? "").Length > 20) return "رقم الهاتف غير صحيح";
+            if ((pin.MapEmbedUrl ?? "").Length > 500) return "الرابط طويل جداً";
+            if (double.IsNaN(pin.Latitude) || double.IsNaN(pin.Longitude) || pin.Latitude < 29 || pin.Latitude > 38 || pin.Longitude < 38 || pin.Longitude > 49)
+                return "الموقع على الخريطة غير صحيح";
+            return null;
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<DateTime>> PinSubmits =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, List<DateTime>>();
+
+        // At most 5 suggestions per hour from one address.
+        public static bool AllowPinSubmission(HttpContext ctx)
+        {
+            string fwd = ctx.Request.Headers["X-Forwarded-For"].ToString();
+            string ip = !string.IsNullOrWhiteSpace(fwd) ? fwd.Split(',')[0].Trim() : (ctx.Connection.RemoteIpAddress?.ToString() ?? "?");
+            var list = PinSubmits.GetOrAdd(ip, _ => new List<DateTime>());
+            lock (list)
+            {
+                list.RemoveAll(t => t < DateTime.UtcNow.AddHours(-1));
+                if (list.Count >= 5) return false;
+                list.Add(DateTime.UtcNow);
+                return true;
+            }
+        }
+
         public static List<MapPin> GetApprovedMapPins()
         {
             lock (MapPinsLock)
             {
-                return _mapPins.Where(p => p.IsApproved).ToList();
+                EnsureWorkshopPin();
+                return Ordered(_mapPins.Where(p => p.IsApproved));
             }
         }
 
@@ -1095,7 +1181,7 @@ namespace ConsanWebApp
         {
             lock (MapPinsLock)
             {
-                return _mapPins.Where(p => !p.IsApproved).OrderByDescending(p => p.SubmittedAt).ToList();
+                return _mapPins.Where(p => !p.IsApproved && !p.IsWorkshop).OrderByDescending(p => p.SubmittedAt).ToList();
             }
         }
 
@@ -1103,7 +1189,8 @@ namespace ConsanWebApp
         {
             lock (MapPinsLock)
             {
-                return _mapPins.ToList();
+                EnsureWorkshopPin();
+                return Ordered(_mapPins);
             }
         }
 
@@ -1131,7 +1218,8 @@ namespace ConsanWebApp
         {
             lock (MapPinsLock)
             {
-                var existing = _mapPins.FirstOrDefault(p => p.Id == int.Parse(id));
+                if (!int.TryParse(id, out int pid)) return false;
+                var existing = _mapPins.FirstOrDefault(p => p.Id == pid);
                 if (existing == null) return false;
                 existing.NameAr = updated.NameAr ?? "";
                 existing.NameEn = updated.NameEn ?? "";
@@ -1152,7 +1240,8 @@ namespace ConsanWebApp
         {
             lock (MapPinsLock)
             {
-                var existing = _mapPins.FirstOrDefault(p => p.Id == int.Parse(id));
+                if (!int.TryParse(id, out int pid)) return false;
+                var existing = _mapPins.FirstOrDefault(p => p.Id == pid);
                 if (existing == null) return false;
                 existing.IsApproved = true;
                 Persist(MapPinsPath, _mapPins);
@@ -1164,7 +1253,8 @@ namespace ConsanWebApp
         {
             lock (MapPinsLock)
             {
-                int removed = _mapPins.RemoveAll(p => p.Id == int.Parse(id));
+                if (!int.TryParse(id, out int n)) return false;
+                int removed = _mapPins.RemoveAll(p => p.Id == n && !p.IsWorkshop);
                 if (removed > 0) Persist(MapPinsPath, _mapPins);
                 return removed > 0;
             }
@@ -2569,147 +2659,7 @@ namespace ConsanWebApp
             return PageShell("دخول الإدارة | ورشة الفرات الأوسط — ME Workshop", css, body);
         }
 
-        public static string GetServiceRequestPage()
-        {
-            string css = GetSharedStyles();
-            string body = $$"""
-            <body>
-                <div class="pattern-bg"></div>
-                {{GetNavbarHtml()}}
-
-                <section class="service-section">
-                    <div class="container">
-                        <div class="service-wrapper">
-                            <div class="service-header">
-                                <span class="section-tag" id="svcTag">اطلب خدمة</span>
-                                <h1 class="section-title" id="svcTitle">طلب <span class="highlight">خدمة</span></h1>
-                                <p class="section-subtitle" id="svcSubtitle">املأ النموذج وسنتواصل معك في أقرب وقت ممكن</p>
-                            </div>
-                            <form class="service-form" onsubmit="return submitService(event)">
-                                <div class="form-group">
-                                    <label class="form-label" id="svcNameLabel">الاسم الكامل</label>
-                                    <input type="text" class="form-input" id="svcName" placeholder="اكتب اسمك الكامل" required />
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label" id="svcPhoneLabel">رقم الهاتف</label>
-                                    <input type="tel" class="form-input" id="svcPhone" placeholder="07xx xxx xxxx" required />
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label" id="svcTypeLabel">نوع الخدمة</label>
-                                    <select class="form-input form-select" id="svcType" required>
-                                        <option value="" id="svcOptPlaceholder">اختر نوع الخدمة</option>
-                                        <option value="pump" id="svcOptPump">تصليح البمبات</option>
-                                        <option value="nozzle" id="svcOptNozzle">النوزلات والحاقنات</option>
-                                        <option value="diagnostic" id="svcOptDiag">فحص إلكتروني</option>
-                                        <option value="other" id="svcOptOther">أخرى</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label" id="svcMsgLabel">تفاصيل إضافية</label>
-                                    <textarea class="form-input form-textarea" id="svcMessage" placeholder="اكتب تفاصيل الخدمة المطلوبة..."></textarea>
-                                </div>
-                                <button type="submit" class="form-submit-btn" id="svcSubmitBtn">إرسال الطلب</button>
-                            </form>
-                            <a href="/" class="back-home-link" id="backHomeLink">→ العودة للرئيسية</a>
-                        </div>
-                    </div>
-                </section>
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                var currentLang = 'ar';
-
-                {{GetCoreNavScript()}}
-
-                var translations = {
-                    ar: { navHome:'الرئيسية', navAbout:'من نحن', navServices:'خدماتنا', navIndustrial:'خدمات صناعية', navExplorer:'المستكشف', navGuide:'الدليل الشامل',
-                        svcTag:'اطلب خدمة', svcTitle:'طلب <span class="highlight">خدمة</span>', svcSubtitle:'املأ النموذج وسنتواصل معك في أقرب وقت ممكن',
-                        svcNameLabel:'الاسم الكامل', svcNamePh:'اكتب اسمك الكامل', svcPhoneLabel:'رقم الهاتف', svcPhonePh:'07xx xxx xxxx',
-                        svcTypeLabel:'نوع الخدمة', svcOptPlaceholder:'اختر نوع الخدمة', svcOptPump:'تصليح البمبات', svcOptNozzle:'النوزلات والحاقنات', svcOptDiag:'فحص إلكتروني', svcOptOther:'أخرى',
-                        svcMsgLabel:'تفاصيل إضافية', svcMsgPh:'اكتب تفاصيل الخدمة المطلوبة...', svcSubmitBtn:'إرسال الطلب', backHomeLink:'→ العودة للرئيسية',
-                        demoAlert:'تم استلام طلب الخدمة، سنتواصل معك قريباً', demoError:'حدث خطأ أثناء إرسال الطلب' },
-                    en: { navHome:'Home', navAbout:'About', navServices:'Our Services', navIndustrial:'Industrial Services', navExplorer:'Explorer', navGuide:'Comprehensive Guide',
-                        svcTag:'Request Service', svcTitle:'Request a <span class="highlight">Service</span>', svcSubtitle:'Fill in the form and we will get back to you as soon as possible',
-                        svcNameLabel:'Full Name', svcNamePh:'Enter your full name', svcPhoneLabel:'Phone Number', svcPhonePh:'07xx xxx xxxx',
-                        svcTypeLabel:'Service Type', svcOptPlaceholder:'Select a service type', svcOptPump:'Pump Repair', svcOptNozzle:'Nozzles & Injectors', svcOptDiag:'Electronic Diagnosis', svcOptOther:'Other',
-                        svcMsgLabel:'Additional Details', svcMsgPh:'Describe the service you need...', svcSubmitBtn:'Submit Request', backHomeLink:'← Back to Home',
-                        demoAlert:'Service request received, we will contact you soon', demoError:'An error occurred while submitting the request' },
-                    ku: { navHome:'ماڵەوە', navAbout:'دەربارە', navServices:'خزمەتەکانمان', navIndustrial:'خزمەتی پیشەسازی', navExplorer:'گەڕان', navGuide:'ڕێنمایی گشتگیر',
-                        svcTag:'داوای خزمەت', svcTitle:'داوای <span class="highlight">خزمەت</span>', svcSubtitle:'فۆرمەکە پڕ بکەرەوە و بە زووترین کات پەیوەندیت پێوە دەکەین',
-                        svcNameLabel:'ناوی تەواو', svcNamePh:'ناوی تەواوت بنووسە', svcPhoneLabel:'ژمارەی مۆبایل', svcPhonePh:'07xx xxx xxxx',
-                        svcTypeLabel:'جۆری خزمەت', svcOptPlaceholder:'جۆری خزمەت هەڵبژێرە', svcOptPump:'چاککردنەوەی پەمپ', svcOptNozzle:'نۆزل و ئینجێکتۆر', svcOptDiag:'پشکنینی ئەلیکترۆنی', svcOptOther:'هیتر',
-                        svcMsgLabel:'وردەکاری زیاتر', svcMsgPh:'وردەکاری خزمەتەکە بنووسە...', svcSubmitBtn:'ناردنی داواکاری', backHomeLink:'← گەڕانەوە بۆ ماڵەوە',
-                        demoAlert:'داواکاری خزمەت وەرگیرا، بەم زوانە پەیوەندیت پێوە دەکەین', demoError:'هەڵەیەک ڕوویدا لە کاتی ناردنی داواکاری' }
-                };
-
-                function submitService(e) {
-                    e.preventDefault();
-                    var t = translations[currentLang];
-                    var form = e.target;
-                    var payload = {
-                        fullName: document.getElementById('svcName').value,
-                        phone: document.getElementById('svcPhone').value,
-                        serviceType: document.getElementById('svcType').value,
-                        message: document.getElementById('svcMessage').value
-                    };
-                    fetch('/api/service-requests', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    }).then(function(r) {
-                        return r.ok;
-                    }).then(function(ok) {
-                        alert(ok ? t.demoAlert : t.demoError);
-                        if (ok) form.reset();
-                    }).catch(function() { alert(t.demoError); });
-                    return false;
-                }
-
-                function switchLanguage(lang) {
-                    currentLang = lang;
-                    document.getElementById('langOptAr').classList.toggle('active', lang === 'ar');
-                    document.getElementById('langOptEn').classList.toggle('active', lang === 'en');
-                    document.getElementById('langOptKu').classList.toggle('active', lang === 'ku');
-                    document.getElementById('langDropdown').classList.add('closed');
-                    document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
-                    document.documentElement.lang = lang;
-                    document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
-
-                    var t = translations[lang];
-                    document.getElementById('navHome').textContent = t.navHome;
-                    document.getElementById('navAbout').textContent = t.navAbout;
-                    document.getElementById('navServices').textContent = t.navServices;
-                    document.getElementById('navIndustrial').textContent = t.navIndustrial;
-                    document.getElementById('navExplorer').textContent = t.navExplorer;
-                    document.getElementById('navGuide').textContent = t.navGuide;
-                    document.getElementById('svcTag').textContent = t.svcTag;
-                    document.getElementById('svcTitle').innerHTML = t.svcTitle;
-                    document.getElementById('svcSubtitle').textContent = t.svcSubtitle;
-                    document.getElementById('svcNameLabel').textContent = t.svcNameLabel;
-                    document.getElementById('svcName').placeholder = t.svcNamePh;
-                    document.getElementById('svcPhoneLabel').textContent = t.svcPhoneLabel;
-                    document.getElementById('svcPhone').placeholder = t.svcPhonePh;
-                    document.getElementById('svcTypeLabel').textContent = t.svcTypeLabel;
-                    document.getElementById('svcOptPlaceholder').textContent = t.svcOptPlaceholder;
-                    document.getElementById('svcOptPump').textContent = t.svcOptPump;
-                    document.getElementById('svcOptNozzle').textContent = t.svcOptNozzle;
-                    document.getElementById('svcOptDiag').textContent = t.svcOptDiag;
-                    document.getElementById('svcOptOther').textContent = t.svcOptOther;
-                    document.getElementById('svcMsgLabel').textContent = t.svcMsgLabel;
-                    document.getElementById('svcMessage').placeholder = t.svcMsgPh;
-                    document.getElementById('svcSubmitBtn').textContent = t.svcSubmitBtn;
-                    document.getElementById('backHomeLink').textContent = t.backHomeLink;
-                }
-
-                window.submitService = submitService;
-                window.switchLanguage = switchLanguage;
-                });
-                </script>
-            </body>
-            """;
-
-            return PageShell("اطلب خدمة | ورشة الفرات الأوسط — ME Workshop", css, body);
-        }
+        // GetServiceRequestPage now lives in Site/ServicePage.cs
 
         // =========================================================
         // ============  INDUSTRIAL SERVICES PAGE (Leaflet.js)  ==========
@@ -2801,6 +2751,9 @@ namespace ConsanWebApp
             }
             .ind-table-scroll { overflow-y: auto; overflow-x: auto; border-radius: 10px; }
             .ind-dept-table { width: 100%; border-collapse: collapse; }
+            .ind-dept-table tbody tr.ws-row td { background: rgba(196,162,107,0.12); border-bottom-color: var(--accent); }
+            .ind-dept-table tbody tr.ws-row td.dept-name { color: var(--accent-text); font-weight: 700; }
+            .ws-tag { display: inline-block; margin-inline-end: 8px; padding: 1px 8px; border-radius: 3px; background: var(--accent); color: var(--on-brass); font-size: 0.72rem; font-weight: 700; vertical-align: middle; }
             .ind-dept-table thead th {
                 position: sticky; top: 0; background: var(--feature-bg); color: var(--gold-dark);
                 font-size: 0.78rem; font-weight: 700; padding: 12px 14px; text-align: right;
@@ -2924,7 +2877,7 @@ namespace ConsanWebApp
 
                 <link rel="stylesheet" href="/me/leaflet/leaflet.css" />
                 <script src="/me/leaflet/leaflet.js"></script>
-                <script src="/me/maps.js"></script>
+                <script src="/me/maps.js?v=%%MAPSV%%"></script>
 
                 <section class="ind-top-section">
                     <div class="container">
@@ -3054,6 +3007,8 @@ namespace ConsanWebApp
                 var mapPins = [];
                 var activePinId = null;
                 var mainMap = null;
+                var workshopMarker = null;
+                var locateAdded = false;
                 var modalMap = null;
                 var modalMarker = null;
                 var markers = {};
@@ -3203,9 +3158,17 @@ namespace ConsanWebApp
                         delete markers[pin.id];
                     }
                     var popupContent = '<strong>' + pinDisplayName(pin) + '</strong><br>' + pinDisplayAddress(pin) + '<br>' + (pin.phone || '-');
-                    var marker = L.marker([pin.latitude, pin.longitude])
-                        .addTo(baseLayerGroup)
-                        .bindPopup(popupContent);
+                    var marker;
+                    if (pin.isWorkshop) {
+                        // the workshop: distinct badge, permanent label, directions, always on top
+                        marker = MEMaps.addWorkshop(baseLayerGroup, pin.latitude, pin.longitude, pinDisplayName(pin),
+                            '<span>' + pinDisplayAddress(pin) + '</span><br><span dir="ltr">' + (pin.phone || '') + '</span><br>');
+                        workshopMarker = marker;
+                    } else {
+                        marker = L.marker([pin.latitude, pin.longitude])
+                            .addTo(baseLayerGroup)
+                            .bindPopup(popupContent);
+                    }
                     markers[pin.id] = marker;
                     if (pin.id === activePinId) {
                         marker.openPopup();
@@ -3243,6 +3206,13 @@ namespace ConsanWebApp
                         tdPhone.className = 'dept-phone';
                         tdPhone.textContent = pin.phone || '-';
 
+                        if (pin.isWorkshop) {
+                            tr.classList.add('ws-row');
+                            var tag = document.createElement('span');
+                            tag.className = 'ws-tag';
+                            tag.textContent = currentLang === 'en' ? 'Workshop' : (currentLang === 'ku' ? 'کارگە' : 'الورشة');
+                            tdName.prepend(tag);
+                        }
                         tr.appendChild(tdName);
                         tr.appendChild(tdAddr);
                         tr.appendChild(tdPhone);
@@ -3254,7 +3224,7 @@ namespace ConsanWebApp
                 function selectPin(pin) {
                     activePinId = pin.id;
                     document.querySelectorAll('#indDeptTableBody tr').forEach(function(tr) {
-                        tr.classList.toggle('active-row', tr.dataset.pinId === pin.id);
+                        tr.classList.toggle('active-row', tr.dataset.pinId === String(pin.id));
                     });
                     if (mainMap && pin.latitude && pin.longitude) {
                         mainMap.flyTo([pin.latitude, pin.longitude], 16, { duration: 1.2 });
@@ -3289,17 +3259,16 @@ namespace ConsanWebApp
                         mapPins.forEach(function(pin) {
                             addMarkerToMap(pin);
                         });
-                        if (mapPins.length && !activePinId) {
-                            activePinId = mapPins[0].id;
-                            selectPin(mapPins[0]);
-                        }
                         renderTable(mapPins);
-                        if (mapPins.length > 1 && mainMap) {
-                            var bounds = L.latLngBounds(mapPins.map(function(p) { return [p.latitude, p.longitude]; }));
-                            mainMap.fitBounds(bounds, { padding: [50, 50] });
-                        } else if (mapPins.length === 1 && mainMap) {
-                            mainMap.setView([mapPins[0].latitude, mapPins[0].longitude], 14);
+                        // Open on the workshop (the server always lists it first) with its card showing.
+                        var ws = mapPins.filter(function(p) { return p.isWorkshop; })[0] || mapPins[0];
+                        if (ws && mainMap) {
+                            if (!activePinId) activePinId = ws.id;
+                            mainMap.setView([ws.latitude, ws.longitude], 17);
+                            if (markers[ws.id]) markers[ws.id].openPopup();
+                            document.querySelectorAll('#indDeptTableBody tr').forEach(function(tr) { tr.classList.toggle('active-row', tr.dataset.pinId === String(ws.id)); });
                         }
+                        if (mainMap && !locateAdded) { locateAdded = true; MEMaps.locateControl(mainMap, function() { return workshopMarker; }); }
                     }).catch(function() { mapPins = []; renderTable(mapPins); });
                 }
 
@@ -3510,10 +3479,11 @@ namespace ConsanWebApp
                 }).catch(function() { });
                 });
                 </script>
+                {{GetContactWidgetHtml()}}
             </body>
             """;
 
-            return PageShell("الخدمات الصناعية | ورشة الفرات الأوسط — ME Workshop", css, body);
+            return PageShell("الخدمات الصناعية | ورشة الفرات الأوسط — ME Workshop", css, body.Replace("%%MAPSV%%", AssetVersion));
         }
 
         // =========================================================
@@ -3575,6 +3545,114 @@ namespace ConsanWebApp
             }
             .admin-header a:hover, .admin-header button:hover { border-color: #D4AF37; color: #D4AF37; }
 
+            /* ===== Visitors ===== */
+            .vis-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+            .vis-head h2 { font-size: 1.15rem; color: #eee; }
+            .vis-range { display: flex; gap: 6px; }
+            .vis-range button { background: #161616; border: 1px solid #333; color: #bbb; border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 0.82rem; cursor: pointer; }
+            .vis-range button.active { border-color: #D4AF37; color: #D4AF37; }
+            .vis-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+            .vis-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px 18px; display: grid; gap: 4px; }
+            .vis-card span { color: #999; font-size: 0.8rem; }
+            .vis-card b { font-size: 1.9rem; color: #fff; font-variant-numeric: tabular-nums; direction: ltr; text-align: start; }
+            .vis-card small { color: #D4AF37; font-size: 0.78rem; }
+            .vis-chart { display: flex; align-items: flex-end; gap: 3px; height: 170px; padding-top: 10px; direction: ltr; }
+            .vis-bar { flex: 1 1 0; min-width: 3px; background: rgba(212,175,55,0.25); border-radius: 3px 3px 0 0; position: relative; }
+            .vis-bar i { position: absolute; inset: auto 0 0 0; background: #D4AF37; border-radius: 3px 3px 0 0; }
+            .vis-bar:hover { background: rgba(212,175,55,0.4); }
+            .vis-axis { display: flex; justify-content: space-between; color: #777; font-size: 0.72rem; margin-top: 6px; direction: ltr; }
+            .vis-legend { color: #888; font-size: 0.75rem; margin-top: 4px; }
+            .vis-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-inline: 8px 4px; }
+            .vis-tops { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+            .vis-list { list-style: none; display: grid; gap: 8px; }
+            .vis-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 0.84rem; color: #ddd; }
+            .vis-list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; unicode-bidi: plaintext; }
+            .vis-list li b { color: #D4AF37; font-variant-numeric: tabular-nums; }
+            .vis-list li em { grid-column: 1 / -1; height: 4px; background: #222; border-radius: 4px; overflow: hidden; display: block; }
+            .vis-list li em s { display: block; height: 100%; background: #D4AF37; text-decoration: none; }
+            .vis-note { color: #777; font-size: 0.78rem; margin-top: 16px; line-height: 1.8; }
+            .vis-mono { direction: ltr; unicode-bidi: isolate; font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; }
+            @media (max-width: 1100px) { .vis-tops { grid-template-columns: 1fr 1fr; } }
+            @media (max-width: 700px) {
+                .vis-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+                .vis-card b { font-size: 1.5rem; }
+                .vis-tops { grid-template-columns: 1fr; }
+                .vis-chart { height: 120px; gap: 1px; }
+            }
+            /* ===== Map locations: workshop row + pending notice ===== */
+            .ws-admin-row td { background: rgba(212,175,55,0.08) !important; }
+            .ws-admin-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; color: #111; background: #D4AF37; border-radius: 4px; padding: 1px 8px; margin-bottom: 4px; }
+            .tab-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-inline-start: 6px; padding: 0 6px; border-radius: 99px; background: #f87171; color: #111; font-size: 0.72rem; font-weight: 800; }
+            .tab-count[hidden] { display: none; }
+            .pin-notice { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: 10px 28px 0; padding: 10px 16px; border: 1px solid rgba(248,113,113,0.5); border-inline-start: 3px solid #f87171; border-radius: 10px; background: #1b1414; font-size: 0.88rem; color: #eee; }
+            .pin-notice[hidden] { display: none; }
+            .pin-notice-dot { width: 8px; height: 8px; border-radius: 50%; background: #f87171; }
+            .pin-notice button { margin-inline-start: auto; background: none; border: 1px solid #f87171; color: #fca5a5; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+            @media (max-width: 600px) { .pin-notice { margin: 10px 14px 0; } .pin-notice button { margin-inline-start: 0; } }
+
+            /* ===== Monthly maintenance / billing ===== */
+            .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+            .bill-strip { display: flex; align-items: center; gap: 14px 22px; flex-wrap: wrap; margin: 14px 28px 0; padding: 12px 18px; border: 1px solid #2c2c2c; border-inline-start: 3px solid #D4AF37; border-radius: 10px; background: #171717; font-size: 0.88rem; }
+            .bill-strip[hidden] { display: none; }
+            .bill-strip.s-paid { border-inline-start-color: #4ade80; }
+            .bill-strip.s-due { border-inline-start-color: #D4AF37; }
+            .bill-strip.s-overdue { border-inline-start-color: #f87171; }
+            .bill-strip-main { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+            .bill-dot { width: 8px; height: 8px; border-radius: 50%; background: #D4AF37; }
+            .s-paid .bill-dot { background: #4ade80; } .s-overdue .bill-dot { background: #f87171; }
+            .bill-strip-label { color: #ddd; }
+            .bill-strip-status { color: #aaa; font-weight: 600; }
+            .bill-strip-meta { color: #9a9a9a; flex: 1 1 260px; }
+            .bill-strip-link { background: none; border: 1px solid #3a3a3a; color: #D4AF37; border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 0.82rem; cursor: pointer; }
+            .bill-strip-link:hover { border-color: #D4AF37; }
+
+            .bill-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 20px; align-items: start; }
+            .invoice { background: #fbfaf7; color: #1b1b1b; border-radius: 12px; padding: 30px 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+            .invoice-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid #1b1b1b; }
+            .invoice-kicker { font-size: 0.75rem; letter-spacing: 0.12em; color: #8a7340; font-weight: 700; }
+            .invoice-title { font-size: 1.45rem; margin: 4px 0 2px; color: #111; }
+            .invoice-sub { color: #6b6b6b; font-size: 0.85rem; }
+            .invoice-essential { display: inline-block; margin-top: 8px; padding: 3px 10px; border-inline-start: 3px solid #8a7340; background: #f1ece0; color: #3d3528; font-size: 0.8rem; font-weight: 600; }
+            .invoice-status { font-size: 0.78rem; font-weight: 700; padding: 6px 14px; border-radius: 99px; white-space: nowrap; border: 1.5px solid currentColor; }
+            .invoice-status.s-paid { color: #15803d; } .invoice-status.s-due { color: #a16207; } .invoice-status.s-overdue { color: #b91c1c; } .invoice-status.s-upcoming { color: #555; }
+            .invoice-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 20px 0 22px; }
+            .invoice-meta dt { font-size: 0.72rem; color: #7a7a7a; margin-bottom: 3px; }
+            .invoice-meta dd { font-weight: 700; font-size: 0.92rem; }
+            .invoice-lines { width: 100%; border-collapse: collapse; background: transparent; border-radius: 0; }
+            .invoice-lines td { padding: 12px 0; border-bottom: 1px solid #e3e0d8; color: #222; background: transparent; }
+            .invoice-lines .num { text-align: end; direction: ltr; font-variant-numeric: tabular-nums; font-weight: 600; }
+            .invoice-lines tfoot td { border-bottom: 0; border-top: 2px solid #1b1b1b; padding-top: 16px; font-size: 1.15rem; font-weight: 800; color: #111; }
+            .invoice-lines .credit-row td { color: #15803d; }
+            .invoice-note { margin-top: 18px; font-size: 0.8rem; color: #6b6b6b; line-height: 1.8; }
+
+            .bill-side { display: grid; gap: 16px; }
+            .bill-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 18px; }
+            .bill-card h3 { font-size: 0.95rem; color: #D4AF37; margin-bottom: 14px; font-weight: 700; }
+            .bill-card label { display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 12px; }
+            .bill-card label input { display: block; width: 100%; margin-top: 6px; padding: 10px 12px; border-radius: 8px; border: 1px solid #333; background: #0f0f0f; color: #eee; font: inherit; font-size: 0.95rem; }
+            .bill-card label input:focus { outline: none; border-color: #D4AF37; }
+            .bill-btn { width: 100%; min-height: 44px; border: 0; border-radius: 8px; background: #D4AF37; color: #111; font: inherit; font-weight: 700; cursor: pointer; }
+            .bill-btn:disabled { opacity: 0.5; cursor: default; }
+            .bill-msg { margin-top: 10px; font-size: 0.82rem; min-height: 1.2em; }
+            .bill-msg.ok { color: #4ade80; } .bill-msg.err { color: #f87171; }
+            .bill-totals > div { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #242424; font-size: 0.88rem; }
+            .bill-totals > div:last-child { border: 0; font-weight: 700; color: #fff; }
+            .bill-totals dt { color: #999; }
+            .bill-wide { margin-top: 20px; }
+            .bill-table td.num { direction: ltr; text-align: end; font-variant-numeric: tabular-nums; }
+            .bill-pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; border: 1px solid currentColor; }
+            .bill-pill.s-paid { color: #4ade80; } .bill-pill.s-partial { color: #fbbf24; } .bill-pill.s-due { color: #D4AF37; } .bill-pill.s-overdue { color: #f87171; }
+            @media (max-width: 1000px) {
+                .bill-layout { grid-template-columns: 1fr; }
+                .invoice-meta { grid-template-columns: 1fr 1fr; }
+            }
+            @media (max-width: 600px) {
+                .bill-strip { margin: 12px 14px 0; }
+                .invoice { padding: 20px 18px; }
+                .invoice-head { flex-direction: column; }
+                .invoice-title { font-size: 1.2rem; }
+                .bill-card label input { font-size: 16px; }
+            }
             .admin-tabs { display: flex; gap: 8px; padding: 16px 28px 0; flex-wrap: wrap; }
             .tab-btn {
                 padding: 10px 18px; border-radius: 10px 10px 0 0; border: 1px solid rgba(212,175,55,0.25); border-bottom: none;
@@ -3936,6 +4014,14 @@ namespace ConsanWebApp
                 .admin-map-container #adminMap { height: 350px; }
                 .admin-modal-box .modal-map-wrap { padding-top: 80%; }
                 .admin-modal-box { padding: 20px; }
+                /* phone: header scrolls away, tabs become one swipeable row */
+                .admin-header { position: static; padding-top: 14px; padding-bottom: 14px; }
+                .admin-header h1 { font-size: 1.05rem; }
+                .admin-header .actions { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; scrollbar-width: none; }
+                .admin-header .actions > * { flex: 0 0 auto; }
+                .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; position: sticky; top: 0; z-index: 9; background: #0f0f10; padding-top: 10px; padding-bottom: 0; }
+                .admin-tabs .tab-btn { flex: 0 0 auto; }
+                .tab-panel { padding-top: 18px; }
             }
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
             @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
@@ -3959,9 +4045,9 @@ namespace ConsanWebApp
                         <div class="actions">
                             <!-- ===== بيانات الحساب الحالي (دائماً ظاهرة) ===== -->
                             <div id="headerAccountInfo" style="display:none;align-items:center;gap:8px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:50px;padding:6px 14px;">
-                                <span style="font-size:0.95rem;">👤</span>
+                                
                                 <span id="headerAccountLabel" style="color:#D4AF37;font-weight:700;font-size:0.82rem;"></span>
-                                <span style="color:#4ade80;font-size:0.75rem;">🟢 متصل</span>
+                                <span style="color:#4ade80;font-size:0.75rem;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#4ade80;margin-inline-end:5px;vertical-align:middle;"></span>متصل</span>
                                 <span id="headerRoleBadge" style="font-size:0.7rem;padding:2px 8px;border-radius:50px;font-weight:700;"></span>
                             </div>
 
@@ -3973,14 +4059,34 @@ namespace ConsanWebApp
                         </div>
                     </header>
 
+                    <!-- ===== SUBSCRIPTION STATUS STRIP ===== -->
+                    <div class="bill-strip" id="billStrip" hidden>
+                        <div class="bill-strip-main">
+                            <span class="bill-dot" id="billStripDot"></span>
+                            <span class="bill-strip-label">الصيانة الشهرية للموقع</span>
+                            <span class="bill-strip-status" id="billStripStatus"></span>
+                        </div>
+                        <div class="bill-strip-meta" id="billStripMeta"></div>
+                        <button type="button" class="bill-strip-link" onclick="switchAdminTab('billing')">عرض الفاتورة</button>
+                    </div>
+
+                    <div class="pin-notice" id="pinPendingNotice" hidden>
+                        <span class="pin-notice-dot"></span>
+                        <span id="pinPendingText"></span>
+                        <button type="button" onclick="switchAdminTab('industrial'); setTimeout(function(){ var el=document.getElementById('pendingPinsBody'); if (el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, 200);">مراجعة الطلبات</button>
+                    </div>
+
                     <nav class="admin-tabs">
                         <button class="tab-btn active" data-tab="accounts" onclick="switchAdminTab('accounts')">المستخدمين والحسابات</button>
                         <button class="tab-btn" data-tab="requests" onclick="switchAdminTab('requests')">طلبات الخدمة</button>
                         <button class="tab-btn" data-tab="content" onclick="switchAdminTab('content')">محتوى الصفحة الرئيسية</button>
                         <button class="tab-btn" data-tab="industrial" onclick="switchAdminTab('industrial')">الخدمات الصناعية والخريطة</button>
+                        <button class="tab-btn" data-tab="gallery" onclick="switchAdminTab('gallery')">معرض الصور والفيديو</button>
                         <button class="tab-btn" data-tab="album" onclick="switchAdminTab('album')">الأرشيف والصور التاريخية</button>
                         <button class="tab-btn" data-tab="explorer" onclick="switchAdminTab('explorer')">بطاقات المستكشف</button>
                         <button class="tab-btn" data-tab="guide" onclick="switchAdminTab('guide')">محتوى الدليل</button>
+                        <button class="tab-btn" data-tab="visitors" onclick="switchAdminTab('visitors')">الزوار</button>
+                        <button class="tab-btn" data-tab="billing" onclick="switchAdminTab('billing')">الفوترة والصيانة</button>
                     </nav>
 
                     <!-- ===== USERS & ACCOUNTS TAB ===== -->
@@ -3990,7 +4096,7 @@ namespace ConsanWebApp
 
                         <!-- Create Account Card — ADMIN ONLY -->
                         <div id="createAccountCard" class="admin-section-box" style="margin-bottom:20px;display:none;">
-                            <h3>➕ إنشاء حساب جديد <span class="badge">Admin فقط</span></h3>
+                            <h3>إنشاء حساب جديد <span class="badge">Admin فقط</span></h3>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
                                 <div class="form-group" style="margin:0;">
                                     <label style="display:block;font-size:0.8rem;color:#D4AF37;margin-bottom:4px;">الاسم الكامل</label>
@@ -4013,14 +4119,14 @@ namespace ConsanWebApp
                                 </div>
                             </div>
                             <div style="margin-top:14px;">
-                                <button class="small-btn primary" onclick="createNewAccount()" style="padding:10px 24px;">✅ إنشاء الحساب</button>
+                                <button class="small-btn primary" onclick="createNewAccount()" style="padding:10px 24px;">إنشاء الحساب</button>
                                 <span id="createAccountMsg" style="margin-right:12px;font-size:0.85rem;"></span>
                             </div>
                         </div>
 
                         <!-- Accounts Table -->
                         <div class="admin-section-box">
-                            <h3>📋 الحسابات المسجلة <span class="badge" id="accountsCount">0</span></h3>
+                            <h3>الحسابات المسجلة <span class="badge" id="accountsCount">0</span></h3>
                             <div class="table-wrap">
                                 <table>
                                     <thead>
@@ -4106,12 +4212,12 @@ namespace ConsanWebApp
                                 <div class="admin-map-column">
                                     <div class="admin-map-card">
                                         <div class="admin-map-header">
-                                            <h3>🗺️ الخريطة التفاعلية</h3>
+                                            <h3>الخريطة التفاعلية</h3>
                                             <span class="map-hint">انقر على الخريطة لإضافة موقع</span>
                                         </div>
                                         <div class="admin-map-container">
                                             <div id="adminMap"></div>
-                                            <div class="admin-map-instruction">🖱️ انقر على الخريطة لإضافة موقع جديد مباشرة (موافَق عليه تلقائياً)</div>
+                                            <div class="admin-map-instruction">انقر على الخريطة لإضافة موقع جديد مباشرة (موافَق عليه تلقائياً)</div>
                                         </div>
                                     </div>
                                 </div>
@@ -4121,7 +4227,7 @@ namespace ConsanWebApp
                                     <!-- Approved Locations Accordion (moved to top) -->
                                     <div class="accordion-panel collapsed" id="approvedAccordion">
                                         <div class="accordion-header" onclick="toggleAccordion('approvedAccordion')">
-                                            <h3>✅ الأقسام والمواقع المعتمدة <span class="badge" id="approvedCount">0</span></h3>
+                                            <h3>الأقسام والمواقع المعتمدة <span class="badge" id="approvedCount">0</span></h3>
                                             <span class="accordion-arrow">▼</span>
                                         </div>
                                         <div class="accordion-body">
@@ -4142,7 +4248,7 @@ namespace ConsanWebApp
                                     <!-- Pending Approval Accordion (now below approved) -->
                                     <div class="accordion-panel collapsed" id="pendingAccordion">
                                         <div class="accordion-header" onclick="toggleAccordion('pendingAccordion')">
-                                            <h3>📋 الطلبات المعلقة <span class="badge pending" id="pendingCount">0</span></h3>
+                                            <h3>الطلبات المعلقة <span class="badge pending" id="pendingCount">0</span></h3>
                                             <span class="accordion-arrow">▼</span>
                                         </div>
                                         <div class="accordion-body">
@@ -4169,7 +4275,7 @@ namespace ConsanWebApp
                             </div>
 
                             <div style="margin-top: 16px;">
-                                <h4 style="color: #D4AF37; font-size: 0.85rem; margin-bottom: 10px;">➕ إضافة / تعديل قسم يدوياً</h4>
+                                <h4 style="color: #D4AF37; font-size: 0.85rem; margin-bottom: 10px;">إضافة / تعديل قسم يدوياً</h4>
                                 <div class="pin-form-grid">
                                     <input type="text" id="pinNameAr" placeholder="الاسم بالعربية" />
                                     <input type="text" id="pinNameEn" placeholder="Name in English" />
@@ -4192,7 +4298,7 @@ namespace ConsanWebApp
                     <!-- ===== ARCHIVAL ALBUM TAB ===== -->
                     <section id="tab-album" class="tab-panel">
                         <fieldset>
-                            <legend>📸 إدارة الألبوم الأرشيفي (الصور التاريخية)</legend>
+                            <legend>إدارة الألبوم الأرشيفي (الصور التاريخية)</legend>
                             <p style="color: #999; font-size: 0.82rem; margin-bottom: 16px;">
                                 أضف الصور التاريخية مع السنة والوصف. تظهر هذه الصور في قسم "نبذة عن مؤسستنا" في الصفحة الرئيسية.
                             </p>
@@ -4233,10 +4339,192 @@ namespace ConsanWebApp
                         </fieldset>
                     </section>
 
+                    <!-- ===== GALLERY TAB ===== -->
+                    <section id="tab-gallery" class="tab-panel">
+                        <style>
+                            .gal-meter { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+                            .gal-meter strong { font-size: 1.3rem; color: #D4AF37; direction: ltr; }
+                            .gal-meter-bar { flex: 1 1 200px; height: 8px; background: #2a2a2a; border-radius: 99px; overflow: hidden; }
+                            .gal-meter-bar span { display: block; height: 100%; background: #D4AF37; width: 0; transition: width .3s; }
+                            .gal-meter.full strong { color: #ff9b9b; }
+                            .gal-meter.full .gal-meter-bar span { background: #ff6b6b; }
+                            .gal-drop { display: block; border: 2px dashed rgba(212,175,55,0.4); border-radius: 10px; padding: 22px 16px; text-align: center; color: #bbb; cursor: pointer; margin-bottom: 12px; }
+                            .gal-drop.drag { background: rgba(212,175,55,0.08); border-color: #D4AF37; }
+                            .gal-drop input { display: block; margin: 10px auto 0; color: #ccc; max-width: 100%; }
+                            .gal-drop small { display: block; color: #888; margin-top: 6px; }
+                            .gal-caps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+                            .gal-caps input, .gal-card input { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #333; background: #111; color: #eee; font: inherit; font-size: 0.85rem; }
+                            .gal-caps input:focus, .gal-card input:focus { outline: none; border-color: #D4AF37; }
+                            .gal-progress { margin-top: 10px; font-size: 0.85rem; }
+                            .gal-progress div { padding: 4px 0; border-bottom: 1px solid #222; display: flex; justify-content: space-between; gap: 10px; }
+                            .gal-progress .ok { color: #9fd39f; } .gal-progress .err { color: #ff9b9b; } .gal-progress .run { color: #D4AF37; }
+                            .gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+                            .gal-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+                            .gal-thumb { position: relative; aspect-ratio: 4/3; background: #000; }
+                            .gal-thumb img, .gal-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+                            .gal-badge { position: absolute; top: 8px; inset-inline-start: 8px; background: rgba(0,0,0,.7); color: #D4AF37; font-size: .72rem; padding: 2px 8px; border-radius: 99px; }
+                            .gal-pos { position: absolute; top: 8px; inset-inline-end: 8px; background: rgba(0,0,0,.7); color: #eee; font-size: .72rem; padding: 2px 8px; border-radius: 99px; direction: ltr; }
+                            .gal-body { padding: 10px; display: grid; gap: 6px; }
+                            .gal-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; }
+                            .gal-actions .small-btn { flex: 1 1 auto; min-height: 38px; }
+                            @media (max-width: 700px) {
+                                .gal-caps { grid-template-columns: 1fr; }
+                                .gal-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+                                .gal-body input { font-size: 16px; }
+                            }
+                            @media (max-width: 420px) { .gal-grid { grid-template-columns: 1fr; } }
+                        </style>
+                        <fieldset>
+                            <legend>معرض الصور والفيديو</legend>
+                            <div class="gal-meter" id="galMeter">
+                                <span>المستخدم:</span> <strong id="galCount">0 / 60</strong>
+                                <div class="gal-meter-bar"><span id="galMeterFill"></span></div>
+                                <a href="/gallery" target="_blank" class="small-btn primary" style="text-decoration:none;">عرض صفحة المعرض ↗</a>
+                            </div>
+                            <label class="gal-drop" id="galDrop">
+                                اختر صوراً أو مقاطع فيديو (يمكن اختيار عدة ملفات) أو اسحبها إلى هنا
+                                <input type="file" id="galFiles" multiple accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,.mov,.m4v" />
+                                <small id="galLimits">الصور حتى 12MB — الفيديو حتى 60MB (MP4 / MOV / WEBM) — الحد الأقصى 60 ملفاً</small>
+                            </label>
+                            <div class="gal-caps">
+                                <input type="text" id="galCapAr" placeholder="الوصف بالعربية (اختياري)" maxlength="300" />
+                                <input type="text" id="galCapEn" placeholder="Caption in English (optional)" maxlength="300" />
+                                <input type="text" id="galCapKu" placeholder="ناونیشان بە کوردی (ئارەزوومەندانە)" maxlength="300" />
+                            </div>
+                            <button class="small-btn primary" id="galUploadBtn" onclick="uploadGalleryFiles()">رفع إلى المعرض</button>
+                            <div class="gal-progress" id="galProgress"></div>
+                        </fieldset>
+
+                        <fieldset style="margin-top: 20px;">
+                            <legend>محتوى المعرض (الترتيب هنا هو ترتيب العرض في الموقع)</legend>
+                            <div class="gal-grid" id="galGrid"></div>
+                        </fieldset>
+                    </section>
+
+                    <!-- ===== VISITORS TAB ===== -->
+                    <section id="tab-visitors" class="tab-panel">
+                        <div class="vis-head">
+                            <h2>زوار الموقع</h2>
+                            <div class="vis-range" role="group" aria-label="الفترة">
+                                <button type="button" data-days="7" onclick="loadVisitors(7)">7 أيام</button>
+                                <button type="button" data-days="30" class="active" onclick="loadVisitors(30)">30 يوماً</button>
+                                <button type="button" data-days="90" onclick="loadVisitors(90)">90 يوماً</button>
+                            </div>
+                        </div>
+                        <div class="vis-cards">
+                            <div class="vis-card"><span>اليوم</span><b id="visToday">-</b><small id="visTodayU"></small></div>
+                            <div class="vis-card"><span>آخر 7 أيام</span><b id="visWeek">-</b><small id="visWeekU"></small></div>
+                            <div class="vis-card"><span id="visPeriodLabel">آخر 30 يوماً</span><b id="visPeriod">-</b><small id="visPeriodU"></small></div>
+                            <div class="vis-card"><span>زوار عائدون</span><b id="visReturning">-</b><small id="visConsent"></small></div>
+                        </div>
+                        <div class="bill-card bill-wide">
+                            <h3>الزيارات اليومية</h3>
+                            <div class="vis-chart" id="visChart"></div>
+                        </div>
+                        <div class="vis-tops">
+                            <div class="bill-card"><h3>أكثر الصفحات زيارة</h3><ul class="vis-list" id="visPages"></ul></div>
+                            <div class="bill-card"><h3>مصدر الزيارة</h3><ul class="vis-list" id="visRefs"></ul></div>
+                            <div class="bill-card"><h3>الأجهزة</h3><ul class="vis-list" id="visDevices"></ul></div>
+                            <div class="bill-card"><h3>المتصفح ونظام التشغيل</h3><ul class="vis-list" id="visBrowsers"></ul></div>
+                        </div>
+                        <div class="bill-card bill-wide">
+                            <h3>الزوار المعروفون (وافقوا على الكوكيز)</h3>
+                            <div class="table-wrap">
+                                <table class="bill-table">
+                                    <thead><tr><th>الزائر</th><th>أول زيارة</th><th>آخر زيارة</th><th>الزيارات</th><th>الصفحات</th><th>الجهاز</th><th>IP</th><th>جاء من</th></tr></thead>
+                                    <tbody id="visPeople"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="bill-card bill-wide">
+                            <h3>آخر الزيارات</h3>
+                            <div class="table-wrap">
+                                <table class="bill-table">
+                                    <thead><tr><th>الوقت</th><th>الزائر</th><th>الصفحة</th><th>جاء من</th><th>الجهاز</th><th>IP</th></tr></thead>
+                                    <tbody id="visRecent"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <p class="vis-note">يُعرَف الزائر برقم ثابت فقط إذا وافق على الكوكيز. الزائر الذي لم يوافق تُحسب زيارته دون كوكيز ويُخفى آخر جزء من عنوان IP الخاص به. زيارات فريق الإدارة لا تُحسب.</p>
+                    </section>
+
+                    <!-- ===== BILLING TAB ===== -->
+                    <section id="tab-billing" class="tab-panel">
+                        <div class="bill-layout">
+                            <article class="invoice" id="invoiceCard">
+                                <header class="invoice-head">
+                                    <div>
+                                        <div class="invoice-kicker">فاتورة</div>
+                                        <h2 class="invoice-title">الصيانة الشهرية للموقع</h2>
+                                        <div class="invoice-sub">ورشة الفرات الأوسط — ME Workshop</div>
+                                        <div class="invoice-essential">خدمة أساسية وإلزامية لاستمرار عمل الموقع وأمانه واستقراره</div>
+                                    </div>
+                                    <div class="invoice-status" id="invStatus"></div>
+                                </header>
+                                <dl class="invoice-meta">
+                                    <div><dt>رقم الفاتورة</dt><dd id="invNumber" class="ltr">-</dd></div>
+                                    <div><dt>فترة الصيانة</dt><dd id="invPeriod">-</dd></div>
+                                    <div><dt>تاريخ الاستحقاق</dt><dd id="invDue">-</dd></div>
+                                    <div><dt>الاستحقاق القادم</dt><dd id="invNext">-</dd></div>
+                                </dl>
+                                <table class="invoice-lines">
+                                    <tbody>
+                                        <tr><td>رسوم الصيانة الشهرية للموقع</td><td class="num" id="invMonthly">-</td></tr>
+                                        <tr><td>رصيد سابق غير مسدد</td><td class="num" id="invPrev">-</td></tr>
+                                        <tr class="credit-row" id="invCreditRow" hidden><td>رصيد دائن (مدفوع مقدماً)</td><td class="num" id="invCredit">-</td></tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr><td>المبلغ المستحق</td><td class="num" id="invTotal">-</td></tr>
+                                    </tfoot>
+                                </table>
+                                <p class="invoice-note">تُستحق رسوم الصيانة في اليوم <span id="invDay" class="ltr">13</span> من كل شهر وتتجدد تلقائياً. أي مبلغ غير مسدد يُرحَّل إلى الفاتورة التالية.</p>
+                            </article>
+
+                            <aside class="bill-side">
+                                <div class="bill-card" id="payFormCard" hidden>
+                                    <h3>تسجيل دفعة</h3>
+                                    <label>المبلغ (USD)<input type="number" id="payAmount" min="0.01" step="0.01" inputmode="decimal" /></label>
+                                    <label>تاريخ الدفع<input type="date" id="payDate" /></label>
+                                    <label>ملاحظة (اختياري)<input type="text" id="payNote" maxlength="200" placeholder="مثال: نقداً / تحويل" /></label>
+                                    <button class="bill-btn" id="payBtn" onclick="recordPayment()">تسجيل الدفعة</button>
+                                    <div class="bill-msg" id="payMsg"></div>
+                                </div>
+                                <div class="bill-card">
+                                    <h3>ملخص الحساب</h3>
+                                    <dl class="bill-totals">
+                                        <div><dt>إجمالي الفواتير</dt><dd id="sumBilled" class="ltr">-</dd></div>
+                                        <div><dt>إجمالي المدفوع</dt><dd id="sumPaid" class="ltr">-</dd></div>
+                                        <div><dt>الرصيد المستحق</dt><dd id="sumBalance" class="ltr">-</dd></div>
+                                    </dl>
+                                </div>
+                            </aside>
+                        </div>
+
+                        <div class="bill-card bill-wide">
+                            <h3>سجل الدفعات</h3>
+                            <div class="table-wrap">
+                                <table class="bill-table">
+                                    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>ملاحظة</th><th>سُجّلت بواسطة</th><th class="admin-only-col"></th></tr></thead>
+                                    <tbody id="payRows"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bill-card bill-wide">
+                            <h3>سجل الفواتير</h3>
+                            <div class="table-wrap">
+                                <table class="bill-table">
+                                    <thead><tr><th>رقم الفاتورة</th><th>الفترة</th><th>المبلغ</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
+                                    <tbody id="invRows"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- ===== EXPLORER CARDS TAB ===== -->
                     <section id="tab-explorer" class="tab-panel">
                         <fieldset>
-                            <legend>🧭 إدارة بطاقات المستكشف</legend>
+                            <legend>إدارة بطاقات المستكشف</legend>
                             <p style="color: #999; font-size: 0.82rem; margin-bottom: 16px;">
                                 أضف وعدّل بطاقات التقنيات والقدرات المعروضة في صفحة "المستكشف".
                             </p>
@@ -4247,7 +4535,7 @@ namespace ConsanWebApp
                             </div>
 
                             <div class="archival-form-grid">
-                                <input type="text" id="explorerIcon" placeholder="الأيقونة (مثال: ⚙️)" value="⚙️" />
+                                <input type="text" id="explorerIcon" placeholder="الأيقونة (اختياري)" value="" />
                                 <input type="text" id="explorerImageUrl" placeholder="رابط الصورة" />
                                 <input type="text" id="explorerTitleAr" placeholder="العنوان بالعربية" />
                                 <input type="text" id="explorerTitleEn" placeholder="Title in English" />
@@ -4286,13 +4574,13 @@ namespace ConsanWebApp
                     <!-- ===== GUIDE CONTENT TAB ===== -->
                     <section id="tab-guide" class="tab-panel">
                         <fieldset>
-                            <legend>📘 إدارة محتوى الدليل الشامل — المواضيع</legend>
+                            <legend>إدارة محتوى الدليل الشامل — المواضيع</legend>
                             <div class="editing-banner" id="guideTopicEditingBanner">
                                 <span id="guideTopicEditingLabel">جاري تعديل موضوع...</span>
                                 <button onclick="cancelGuideTopicEdit()">إلغاء التعديل</button>
                             </div>
                             <div class="archival-form-grid">
-                                <input type="text" id="guideTopicIcon" placeholder="الأيقونة (مثال: 🏭)" value="📘" />
+                                <input type="text" id="guideTopicIcon" placeholder="الأيقونة (اختياري)" value="" />
                                 <input type="text" id="guideTopicSortOrder" placeholder="ترتيب العرض (رقم)" value="0" />
                                 <input type="text" id="guideTopicTitleAr" placeholder="العنوان بالعربية" />
                                 <input type="text" id="guideTopicTitleEn" placeholder="Title in English" />
@@ -4317,7 +4605,7 @@ namespace ConsanWebApp
                         </fieldset>
 
                         <fieldset style="margin-top: 20px;">
-                            <legend>🔧 إدارة معدات الدليل</legend>
+                            <legend>إدارة معدات الدليل</legend>
                             <div class="editing-banner" id="guideEquipEditingBanner">
                                 <span id="guideEquipEditingLabel">جاري تعديل معدة...</span>
                                 <button onclick="cancelGuideEquipEdit()">إلغاء التعديل</button>
@@ -4355,7 +4643,7 @@ namespace ConsanWebApp
                 <div class="admin-modal-overlay" id="pinModalOverlay">
                     <div class="admin-modal-box">
                         <button class="modal-close" onclick="closePinModal()">×</button>
-                        <h2>📍 إضافة موقع جديد على الخريطة</h2>
+                        <h2>إضافة موقع جديد على الخريطة</h2>
                         <div class="modal-map-wrap">
                             <div id="modalAdminMap"></div>
                         </div>
@@ -4373,7 +4661,7 @@ namespace ConsanWebApp
                             <input type="text" id="modalPinPhone" placeholder="07xx xxx xxxx" />
                         </div>
                         <div class="modal-actions">
-                            <button class="btn-confirm" onclick="confirmDirectPin()">✅ تأكيد وإضافة الموقع</button>
+                            <button class="btn-confirm" onclick="confirmDirectPin()">تأكيد وإضافة الموقع</button>
                             <button class="btn-cancel" onclick="closePinModal()">إلغاء</button>
                         </div>
                     </div>
@@ -4381,7 +4669,7 @@ namespace ConsanWebApp
 
                 <link rel="stylesheet" href="/me/leaflet/leaflet.css" />
                 <script src="/me/leaflet/leaflet.js"></script>
-                <script src="/me/maps.js"></script>
+                <script src="/me/maps.js?v=%%MAPSV%%"></script>
 
                 <script>
                 var contentData = { translations: { ar: {}, en: {}, ku: {} }, heroImages: [] };
@@ -4448,6 +4736,10 @@ namespace ConsanWebApp
                     loadExplorerCardsAdmin();
                     loadGuideContentAdmin();
                     initAdminMap();
+                    loadGalleryAdmin();
+                    loadBilling();
+                    loadVisitors();
+                    if (currentUser && currentUser.role === 'Manager') switchAdminTab('gallery');
                 }
 
                 function renderAccountStatusBar() {
@@ -4463,12 +4755,12 @@ namespace ConsanWebApp
                     var badge = document.getElementById('headerRoleBadge');
                     if (badge) {
                         if (currentUser.role === 'Admin') {
-                            badge.textContent = '🛡️ Admin';
+                            badge.textContent = 'Admin';
                             badge.style.background = 'rgba(212,175,55,0.15)';
                             badge.style.border = '1px solid #D4AF37';
                             badge.style.color = '#D4AF37';
                         } else {
-                            badge.textContent = '👔 Manager';
+                            badge.textContent = 'Manager';
                             badge.style.background = 'rgba(107,114,128,0.15)';
                             badge.style.border = '1px solid #6b7280';
                             badge.style.color = '#9ca3af';
@@ -4519,17 +4811,17 @@ namespace ConsanWebApp
                             var tr = document.createElement('tr');
                             var created = acc.createdAt ? new Date(acc.createdAt).toLocaleString() : '-';
                             var roleLabel = acc.role === 'Admin'
-                                ? '<span style="color:#D4AF37;font-weight:700;">Admin 🛡️</span>'
-                                : '<span style="color:#9ca3af;font-weight:700;">Manager 👔</span>';
+                                ? '<span style="color:#D4AF37;font-weight:700;">Admin </span>'
+                                : '<span style="color:#9ca3af;font-weight:700;">Manager </span>';
                             var verifiedLabel = acc.isVerified
-                                ? '<span style="color:#4ade80;">✅ موثّق</span>'
-                                : '<span style="color:#ffb86b;">⏳ غير موثّق</span>';
+                                ? '<span style="color:#4ade80;">موثّق</span>'
+                                : '<span style="color:#ffb86b;">غير موثّق</span>';
                             var actionsHtml = '';
                             if (isAdmin) {
                                 var emailEscaped = (acc.email || '').replace(/'/g, "\\'");
                                 actionsHtml =
-                                    '<button class="small-btn primary" onclick="changeAccountPassword(' + acc.id + ', \'' + emailEscaped + '\')">🔑 تغيير الباسورد</button>' +
-                                    '<button class="small-btn danger" onclick="deleteAccount(' + acc.id + ', \'' + emailEscaped + '\')">🗑️ حذف</button>';
+                                    '<button class="small-btn primary" onclick="changeAccountPassword(' + acc.id + ', \'' + emailEscaped + '\')">تغيير الباسورد</button>' +
+                                    '<button class="small-btn danger" onclick="deleteAccount(' + acc.id + ', \'' + emailEscaped + '\')">حذف</button>';
                             } else {
                                 actionsHtml = '<span style="color:#666;font-size:0.8rem;">— للعرض فقط —</span>';
                             }
@@ -4564,7 +4856,7 @@ namespace ConsanWebApp
                         });
                         var data = await res.json();
                         if (res.ok && data.success) {
-                            msg.textContent = '✅ تم إنشاء الحساب بنجاح';
+                            msg.textContent = 'تم إنشاء الحساب بنجاح';
                             msg.style.color = '#4ade80';
                             document.getElementById('newAccountFullName').value = '';
                             document.getElementById('newAccountEmail').value = '';
@@ -4589,7 +4881,7 @@ namespace ConsanWebApp
                             body: JSON.stringify({ userId: userId, newPassword: newPass })
                         });
                         var data = await res.json();
-                        if (res.ok && data.success) { alert('✅ تم تغيير كلمة المرور بنجاح'); }
+                        if (res.ok && data.success) { alert('تم تغيير كلمة المرور بنجاح'); }
                         else { alert(data.message || 'فشل تغيير كلمة المرور'); }
                     } catch (e) { alert('خطأ في الاتصال'); }
                 }
@@ -4599,7 +4891,7 @@ namespace ConsanWebApp
                     try {
                         var res = await fetch('/api/admin/accounts/' + userId, { method: 'DELETE' });
                         var data = await res.json();
-                        if (res.ok && data.success) { alert('✅ تم حذف الحساب'); loadAccounts(); }
+                        if (res.ok && data.success) { alert('تم حذف الحساب'); loadAccounts(); }
                         else { alert(data.message || 'فشل الحذف'); }
                     } catch (e) { alert('خطأ في الاتصال'); }
                 }
@@ -4611,6 +4903,8 @@ namespace ConsanWebApp
                     document.querySelectorAll('.tab-panel').forEach(function(panel) {
                         panel.classList.toggle('active', panel.id === 'tab-' + tab);
                     });
+                    var activeBtn = document.querySelector('.admin-tabs .tab-btn.active');
+                    if (activeBtn && activeBtn.scrollIntoView) activeBtn.scrollIntoView({ block: 'nearest', inline: 'center' });
                     if (tab === 'industrial' && adminMap) {
                         setTimeout(function() { adminMap.invalidateSize(); }, 150);
                     }
@@ -4956,8 +5250,9 @@ namespace ConsanWebApp
                         document.getElementById('approvedCount').textContent = (pins || []).length;
                         (pins || []).forEach(function(pin) {
                             var tr = document.createElement('tr');
+                            if (pin.isWorkshop) tr.className = 'ws-admin-row';
                             tr.innerHTML =
-                                '<td>' + escapeHtml(pin.nameAr || '-') + '</td>' +
+                                '<td>' + (pin.isWorkshop ? '<span class="ws-admin-tag">الورشة — الموقع الرئيسي</span><br>' : '') + escapeHtml(pin.nameAr || '-') + '</td>' +
                                 '<td>' + escapeHtml(pin.nameEn || '-') + '</td>' +
                                 '<td>' + escapeHtml(pin.addressAr || '-') + '</td>' +
                                 '<td>' + escapeHtml(pin.phone || '-') + '</td>' +
@@ -4965,7 +5260,7 @@ namespace ConsanWebApp
                                 '<td>' + escapeHtml(String(pin.longitude)) + '</td>' +
                                 '<td>' +
                                     '<button class="small-btn primary" onclick=\'startEditPin(' + JSON.stringify(pin) + ')\'>تعديل</button>' +
-                                    '<button class="small-btn danger" onclick="deleteMapPin(\'' + pin.id + '\')">حذف</button>' +
+                                    (pin.isWorkshop ? '' : '<button class="small-btn danger" onclick="deleteMapPin(\'' + pin.id + '\')">حذف</button>') +
                                 '</td>';
                             body.appendChild(tr);
 
@@ -4973,9 +5268,9 @@ namespace ConsanWebApp
                             if (adminBaseLayerGroup) {
                                 if (adminMarkers[pin.id]) { adminMarkers[pin.id].remove(); }
                                 var popupContent = '<strong>' + escapeHtml(pin.nameAr || pin.nameEn) + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-');
-                                var marker = L.marker([pin.latitude, pin.longitude])
-                                    .addTo(adminBaseLayerGroup)
-                                    .bindPopup(popupContent);
+                                var marker = pin.isWorkshop
+                                    ? MEMaps.addWorkshop(adminBaseLayerGroup, pin.latitude, pin.longitude, pin.nameAr || pin.nameEn)
+                                    : L.marker([pin.latitude, pin.longitude]).addTo(adminBaseLayerGroup).bindPopup(popupContent);
                                 adminMarkers[pin.id] = marker;
                             }
                         });
@@ -4993,6 +5288,7 @@ namespace ConsanWebApp
                         var body = document.getElementById('pendingPinsBody');
                         body.innerHTML = '';
                         document.getElementById('pendingCount').textContent = (pins || []).length;
+                        showPendingNotice((pins || []).length);
                         if (!pins || !pins.length) {
                             body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;padding:20px;">لا توجد طلبات معلقة حالياً</td></tr>';
                             return;
@@ -5006,8 +5302,8 @@ namespace ConsanWebApp
                                 '<td>' + escapeHtml(String(pin.latitude)) + '</td>' +
                                 '<td>' + escapeHtml(String(pin.longitude)) + '</td>' +
                                 '<td>' +
-                                    '<button class="small-btn success" onclick="approvePin(\'' + pin.id + '\')">✅ موافقة</button>' +
-                                    '<button class="small-btn danger" onclick="rejectPin(\'' + pin.id + '\')">❌ رفض</button>' +
+                                    '<button class="small-btn success" onclick="approvePin(\'' + pin.id + '\')">موافقة</button>' +
+                                    '<button class="small-btn danger" onclick="rejectPin(\'' + pin.id + '\')">رفض</button>' +
                                 '</td>';
                             body.appendChild(tr);
 
@@ -5021,10 +5317,25 @@ namespace ConsanWebApp
                                 });
                                 var marker = L.marker([pin.latitude, pin.longitude], { icon: pendingIcon })
                                     .addTo(adminPendingLayerGroup)
-                                    .bindPopup('<strong>' + escapeHtml(pin.nameAr || pin.nameEn || '') + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-') + '<br><em style="color:#ffb86b;">⏳ بانتظار الموافقة</em>');
+                                    .bindPopup('<strong>' + escapeHtml(pin.nameAr || pin.nameEn || '') + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-') + '<br><em style="color:#ffb86b;">بانتظار الموافقة</em>');
                             }
                         });
                     }).catch(function() { });
+                }
+
+                // Visitor-suggested locations waiting for a Manager/Admin decision
+                function showPendingNotice(n) {
+                    var btn = document.querySelector('.admin-tabs .tab-btn[data-tab="industrial"]');
+                    if (btn) {
+                        var b = btn.querySelector('.tab-count');
+                        if (!b) { b = document.createElement('span'); b.className = 'tab-count'; btn.appendChild(b); }
+                        b.textContent = n; b.hidden = !n;
+                    }
+                    var note = document.getElementById('pinPendingNotice');
+                    if (note) {
+                        note.hidden = !n;
+                        document.getElementById('pinPendingText').textContent = n === 1 ? 'يوجد موقع واحد مقترح من الزوار بانتظار موافقتك' : 'يوجد ' + n + ' مواقع مقترحة من الزوار بانتظار موافقتك';
+                    }
                 }
 
                 function approvePin(id) {
@@ -5257,7 +5568,7 @@ namespace ConsanWebApp
                         cards.forEach(function(c) {
                             var tr = document.createElement('tr');
                             tr.innerHTML =
-                                '<td style="font-size:1.4rem;text-align:center;">' + escapeHtml(c.icon || '⚙️') + '</td>' +
+                                '<td style="font-size:1.4rem;text-align:center;">' + escapeHtml(c.icon || '-') + '</td>' +
                                 '<td><img src="' + escapeHtml(c.imageUrl) + '" style="width:80px;height:50px;object-fit:cover;border-radius:6px;" onerror="this.style.display=\'none\'" /></td>' +
                                 '<td>' + escapeHtml(c.titleAr || '-') + '</td>' +
                                 '<td style="max-width:200px;white-space:normal;">' + escapeHtml(c.tags || '-') + '</td>' +
@@ -5273,7 +5584,7 @@ namespace ConsanWebApp
 
                 function startEditExplorer(card) {
                     editingExplorerId = card.id;
-                    document.getElementById('explorerIcon').value = card.icon || '⚙️';
+                    document.getElementById('explorerIcon').value = card.icon || '';
                     document.getElementById('explorerImageUrl').value = card.imageUrl || '';
                     document.getElementById('explorerTitleAr').value = card.titleAr || '';
                     document.getElementById('explorerTitleEn').value = card.titleEn || '';
@@ -5296,7 +5607,7 @@ namespace ConsanWebApp
                     ['explorerIcon','explorerImageUrl','explorerTitleAr','explorerTitleEn','explorerTitleKu','explorerDescAr','explorerDescEn','explorerDescKu','explorerTags','explorerLink','explorerSortOrder'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
-                    document.getElementById('explorerIcon').value = '⚙️';
+                    document.getElementById('explorerIcon').value = '';
                     document.getElementById('explorerLink').value = '/guide';
                     document.getElementById('explorerSortOrder').value = '0';
                     document.getElementById('explorerSubmitBtn').textContent = 'إضافة بطاقة جديدة';
@@ -5305,7 +5616,7 @@ namespace ConsanWebApp
 
                 function submitExplorerCard() {
                     var payload = {
-                        icon: document.getElementById('explorerIcon').value || '⚙️',
+                        icon: document.getElementById('explorerIcon').value || '',
                         imageUrl: document.getElementById('explorerImageUrl').value,
                         titleAr: document.getElementById('explorerTitleAr').value,
                         titleEn: document.getElementById('explorerTitleEn').value,
@@ -5387,7 +5698,7 @@ namespace ConsanWebApp
                     guideAdminData.topics.forEach(function(t) {
                         var tr = document.createElement('tr');
                         tr.innerHTML =
-                            '<td style="font-size:1.3rem;text-align:center;">' + escapeHtml(t.icon || '📘') + '</td>' +
+                            '<td style="font-size:1.3rem;text-align:center;">' + escapeHtml(t.icon || '-') + '</td>' +
                             '<td>' + escapeHtml(t.titleAr || '-') + '</td>' +
                             '<td>' + escapeHtml(String(t.sortOrder || 0)) + '</td>' +
                             '<td>' +
@@ -5400,7 +5711,7 @@ namespace ConsanWebApp
 
                 function startEditGuideTopic(t) {
                     editingGuideTopicId = t.id;
-                    document.getElementById('guideTopicIcon').value = t.icon || '📘';
+                    document.getElementById('guideTopicIcon').value = t.icon || '';
                     document.getElementById('guideTopicSortOrder').value = t.sortOrder || 0;
                     document.getElementById('guideTopicTitleAr').value = t.titleAr || '';
                     document.getElementById('guideTopicTitleEn').value = t.titleEn || '';
@@ -5418,7 +5729,7 @@ namespace ConsanWebApp
                     ['guideTopicIcon','guideTopicSortOrder','guideTopicTitleAr','guideTopicTitleEn','guideTopicTitleKu','guideTopicBodyAr','guideTopicBodyEn','guideTopicBodyKu'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
-                    document.getElementById('guideTopicIcon').value = '📘';
+                    document.getElementById('guideTopicIcon').value = '';
                     document.getElementById('guideTopicSortOrder').value = '0';
                     document.getElementById('guideTopicSubmitBtn').textContent = 'إضافة موضوع جديد';
                     document.getElementById('guideTopicEditingBanner').classList.remove('active');
@@ -5426,7 +5737,7 @@ namespace ConsanWebApp
 
                 function submitGuideTopic() {
                     var payload = {
-                        icon: document.getElementById('guideTopicIcon').value || '📘',
+                        icon: document.getElementById('guideTopicIcon').value || '',
                         sortOrder: parseInt(document.getElementById('guideTopicSortOrder').value) || 0,
                         titleAr: document.getElementById('guideTopicTitleAr').value,
                         titleEn: document.getElementById('guideTopicTitleEn').value,
@@ -5582,6 +5893,404 @@ namespace ConsanWebApp
                         .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
                 }
 
+                // =========================================================
+                // ======================= GALLERY =========================
+                // =========================================================
+                var galleryState = { max: 60, items: [], maxImageMb: 12, maxVideoMb: 60 };
+
+                function loadGalleryAdmin() {
+                    return fetch('/api/admin/gallery').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+                        if (!data) return;
+                        galleryState = data;
+                        renderGalleryAdmin();
+                    }).catch(function() { });
+                }
+
+                function renderGalleryAdmin() {
+                    var items = galleryState.items || [];
+                    var max = galleryState.max || 60;
+                    document.getElementById('galCount').textContent = items.length + ' / ' + max;
+                    document.getElementById('galMeterFill').style.width = Math.min(100, items.length / max * 100) + '%';
+                    var full = items.length >= max;
+                    document.getElementById('galMeter').classList.toggle('full', full);
+                    document.getElementById('galUploadBtn').disabled = full;
+                    document.getElementById('galFiles').disabled = full;
+                    document.getElementById('galLimits').textContent = full
+                        ? 'المعرض ممتلئ (' + max + ' ملفاً). احذف ملفاً لإضافة جديد.'
+                        : 'الصور حتى ' + galleryState.maxImageMb + 'MB — الفيديو حتى ' + galleryState.maxVideoMb + 'MB (MP4 / MOV / WEBM) — المتبقي: ' + (max - items.length) + ' من ' + max;
+
+                    var grid = document.getElementById('galGrid');
+                    grid.innerHTML = '';
+                    if (!items.length) {
+                        grid.innerHTML = '<p style="color:#777;padding:16px;">لا توجد ملفات في المعرض بعد.</p>';
+                        return;
+                    }
+                    items.forEach(function(it, i) {
+                        var card = document.createElement('div');
+                        card.className = 'gal-card';
+                        var media = it.type === 'video'
+                            ? '<video src="' + escapeHtml(it.url) + '#t=0.1" preload="metadata" muted playsinline controls></video>'
+                            : '<img src="' + escapeHtml(it.url) + '" loading="lazy" alt="" />';
+                        card.innerHTML =
+                            '<div class="gal-thumb">' + media +
+                                '<span class="gal-badge">' + (it.type === 'video' ? 'فيديو' : 'صورة') + ' · ' + ((it.size || 0) < 1048576 ? Math.max(1, Math.round((it.size || 0) / 1024)) + 'KB' : (Math.round(it.size / 1048576 * 10) / 10) + 'MB') + '</span>' +
+                                '<span class="gal-pos">#' + (i + 1) + '</span>' +
+                            '</div>' +
+                            '<div class="gal-body">' +
+                                '<input type="text" data-k="captionAr" maxlength="300" placeholder="الوصف بالعربية" value="' + escapeHtml(it.captionAr || '') + '" />' +
+                                '<input type="text" data-k="captionEn" maxlength="300" placeholder="English caption" value="' + escapeHtml(it.captionEn || '') + '" />' +
+                                '<input type="text" data-k="captionKu" maxlength="300" placeholder="ناونیشانی کوردی" value="' + escapeHtml(it.captionKu || '') + '" />' +
+                            '</div>' +
+                            '<div class="gal-actions">' +
+                                '<button class="small-btn primary" data-act="save">حفظ الوصف</button>' +
+                                '<button class="small-btn" data-act="up" title="تقديم" ' + (i === 0 ? 'disabled' : '') + '>▲</button>' +
+                                '<button class="small-btn" data-act="down" title="تأخير" ' + (i === items.length - 1 ? 'disabled' : '') + '>▼</button>' +
+                                '<button class="small-btn danger" data-act="del">حذف</button>' +
+                            '</div>';
+                        card.querySelector('[data-act="save"]').onclick = function(e) {
+                            var payload = {};
+                            card.querySelectorAll('input[data-k]').forEach(function(inp) { payload[inp.getAttribute('data-k')] = inp.value; });
+                            var btn = e.currentTarget;
+                            fetch('/api/admin/gallery/' + it.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                                .then(function(r) { btn.textContent = r.ok ? 'تم الحفظ' : 'فشل الحفظ'; setTimeout(function() { btn.textContent = 'حفظ الوصف'; }, 1800); if (r.ok) { it.captionAr = payload.captionAr; it.captionEn = payload.captionEn; it.captionKu = payload.captionKu; } });
+                        };
+                        card.querySelector('[data-act="up"]').onclick = function() { moveGalleryItem(it.id, 'up'); };
+                        card.querySelector('[data-act="down"]').onclick = function() { moveGalleryItem(it.id, 'down'); };
+                        card.querySelector('[data-act="del"]').onclick = function() {
+                            if (!confirm('حذف هذا الملف من المعرض نهائياً؟')) return;
+                            fetch('/api/admin/gallery/' + it.id, { method: 'DELETE' }).then(function() { loadGalleryAdmin(); });
+                        };
+                        grid.appendChild(card);
+                    });
+                }
+
+                function moveGalleryItem(id, dir) {
+                    fetch('/api/admin/gallery/' + id + '/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir: dir }) })
+                        .then(function() { loadGalleryAdmin(); });
+                }
+
+                // Sends one file in 4 MB pieces (each piece retried up to 3 times), so large videos
+                // on slow or unstable connections still arrive.
+                function sendGalleryChunk(fd) {
+                    return new Promise(function(resolve) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/api/admin/gallery/chunk');
+                        xhr.timeout = 240000;
+                        xhr.onload = function() {
+                            var data = {};
+                            try { data = JSON.parse(xhr.responseText); } catch (e) { }
+                            resolve({ status: xhr.status, data: data });
+                        };
+                        xhr.onerror = function() { resolve({ status: 0, data: {} }); };
+                        xhr.ontimeout = function() { resolve({ status: 0, data: {} }); };
+                        xhr.send(fd);
+                    });
+                }
+
+                async function uploadOneGalleryFile(file, row) {
+                    var CHUNK = 4 * 1024 * 1024;
+                    var total = Math.max(1, Math.ceil(file.size / CHUNK));
+                    var uploadId = '';
+                    var hex = '0123456789abcdef';
+                    for (var k = 0; k < 32; k++) uploadId += hex[Math.floor(Math.random() * 16)];
+                    var status = row.lastChild;
+                    for (var i = 0; i < total; i++) {
+                        var fd = new FormData();
+                        fd.append('uploadId', uploadId);
+                        fd.append('index', String(i));
+                        fd.append('total', String(total));
+                        fd.append('fileName', file.name);
+                        fd.append('size', String(file.size));
+                        if (i === total - 1) {
+                            fd.append('captionAr', document.getElementById('galCapAr').value);
+                            fd.append('captionEn', document.getElementById('galCapEn').value);
+                            fd.append('captionKu', document.getElementById('galCapKu').value);
+                        }
+                        fd.append('chunk', file.slice(i * CHUNK, Math.min(file.size, (i + 1) * CHUNK)), 'chunk');
+                        var res = null;
+                        for (var attempt = 1; attempt <= 3; attempt++) {
+                            res = await sendGalleryChunk(fd);
+                            if (res.status !== 0 && res.status < 500) break;
+                            status.textContent = 'إعادة المحاولة (' + attempt + ')…';
+                            await new Promise(function(r) { setTimeout(r, 2000 * attempt); });
+                        }
+                        if (!(res.status >= 200 && res.status < 300 && res.data.success)) {
+                            status.textContent = res.data.message || (res.status ? 'فشل (' + res.status + ')' : 'انقطع الاتصال، أعد المحاولة');
+                            status.className = 'err';
+                            return res.status === 409 ? 'full' : false;
+                        }
+                        status.textContent = Math.round((i + 1) / total * 100) + '%';
+                    }
+                    status.textContent = 'تم'; status.className = 'ok';
+                    return true;
+                }
+
+                async function uploadGalleryFiles() {
+                    var input = document.getElementById('galFiles');
+                    var files = Array.prototype.slice.call(input.files || []);
+                    if (!files.length) { alert('اختر ملفاً واحداً على الأقل'); return; }
+                    var room = (galleryState.max || 60) - (galleryState.items || []).length;
+                    var progress = document.getElementById('galProgress');
+                    progress.innerHTML = '';
+                    var btn = document.getElementById('galUploadBtn');
+                    btn.disabled = true;
+                    for (var i = 0; i < files.length; i++) {
+                        var f = files[i];
+                        var row = document.createElement('div');
+                        row.innerHTML = '<span></span><span class="run">…</span>';
+                        row.firstChild.textContent = f.name;
+                        progress.appendChild(row);
+                        if (i >= room) { row.lastChild.textContent = 'تم تجاوز الحد الأقصى (' + galleryState.max + ')'; row.lastChild.className = 'err'; continue; }
+                        var isVideo = /^video\//.test(f.type) || /\.(mov|mp4|m4v|webm)$/i.test(f.name);
+                        var limit = (isVideo ? galleryState.maxVideoMb : galleryState.maxImageMb) * 1048576;
+                        if (f.size > limit) { row.lastChild.textContent = 'الحجم أكبر من ' + (limit / 1048576) + 'MB'; row.lastChild.className = 'err'; continue; }
+                        var res = await uploadOneGalleryFile(f, row);
+                        if (res === 'full') room = i; // server says full: skip the rest
+                    }
+                    input.value = '';
+                    await loadGalleryAdmin();
+                    btn.disabled = (galleryState.items || []).length >= (galleryState.max || 60);
+                }
+
+                (function() {
+                    var drop = document.getElementById('galDrop');
+                    var input = document.getElementById('galFiles');
+                    if (!drop || !input) return;
+                    ['dragenter', 'dragover'].forEach(function(ev) { drop.addEventListener(ev, function(e) { e.preventDefault(); drop.classList.add('drag'); }); });
+                    ['dragleave', 'drop'].forEach(function(ev) { drop.addEventListener(ev, function(e) { e.preventDefault(); drop.classList.remove('drag'); }); });
+                    drop.addEventListener('drop', function(e) { if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; } });
+                })();
+
+                // =========================================================
+                // ================= SUBSCRIPTION / BILLING ================
+                // =========================================================
+                var billingCanEdit = false;
+                var BILL_STATUS = { paid: 'مدفوعة', partial: 'مدفوعة جزئياً', due: 'مستحقة', overdue: 'متأخرة', upcoming: 'لم تبدأ بعد' };
+
+                function money(v) {
+                    var n = Number(v || 0);
+                    // LTR isolate so "$20.00" reads correctly inside Arabic sentences
+                    return '\u2066$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u2069';
+                }
+                function niceDate(s) {
+                    if (!s) return '-';
+                    var p = s.split('-');
+                    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+                    try { return d.toLocaleDateString('ar-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
+                    catch (e) { return s; }
+                }
+
+                function loadBilling() {
+                    return fetch('/api/admin/billing').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+                        if (!data) return;
+                        billingCanEdit = !!data.canEdit;
+                        renderBilling(data.summary);
+                    }).catch(function() { });
+                }
+
+                function renderBilling(s) {
+                    var st = s.status;
+                    // header strip
+                    var strip = document.getElementById('billStrip');
+                    strip.hidden = false;
+                    strip.className = 'bill-strip s-' + st;
+                    var stripText = st === 'paid' ? 'مدفوع — لا يوجد مبلغ مستحق'
+                        : st === 'overdue' ? 'متأخر — المستحق ' + money(s.balance)
+                        : st === 'upcoming' ? 'يبدأ في ' + niceDate(s.startDate)
+                        : 'مستحق ' + money(s.balance);
+                    document.getElementById('billStripStatus').textContent = stripText;
+                    document.getElementById('billStripMeta').textContent = st === 'paid'
+                        ? 'الاستحقاق القادم: ' + niceDate(s.nextRenewal) + ' — ' + money(s.monthlyAmount) + ' شهرياً'
+                        : 'تاريخ الاستحقاق: ' + niceDate(s.dueDate) + ' — الاستحقاق القادم: ' + niceDate(s.nextRenewal);
+
+                    // invoice
+                    var badge = document.getElementById('invStatus');
+                    badge.className = 'invoice-status s-' + st;
+                    badge.textContent = st === 'paid' ? 'مدفوعة' : (BILL_STATUS[st] || '');
+                    document.getElementById('invNumber').textContent = s.currentInvoice || '-';
+                    document.getElementById('invPeriod').textContent = niceDate(s.currentPeriodStart) + ' – ' + niceDate(s.currentPeriodEnd);
+                    document.getElementById('invDue').textContent = niceDate(s.dueDate);
+                    document.getElementById('invNext').textContent = niceDate(s.nextRenewal);
+                    document.getElementById('invMonthly').textContent = money(s.monthlyAmount);
+                    document.getElementById('invPrev').textContent = money(s.previousBalance);
+                    document.getElementById('invTotal').textContent = money(s.balance);
+                    document.getElementById('invCreditRow').hidden = !(s.credit > 0);
+                    document.getElementById('invCredit').textContent = '-' + money(s.credit);
+                    document.getElementById('invDay').textContent = String(+s.startDate.split('-')[2]);
+
+                    document.getElementById('sumBilled').textContent = money(s.totalBilled);
+                    document.getElementById('sumPaid').textContent = money(s.totalPaid);
+                    document.getElementById('sumBalance').textContent = money(s.balance);
+
+                    // payment form (Admin only)
+                    var form = document.getElementById('payFormCard');
+                    form.hidden = !billingCanEdit;
+                    if (billingCanEdit) {
+                        var amt = document.getElementById('payAmount');
+                        if (!amt.dataset.touched) amt.value = s.balance > 0 ? Number(s.balance).toFixed(2) : Number(s.monthlyAmount).toFixed(2);
+                        var dt = document.getElementById('payDate');
+                        if (!dt.value) dt.value = s.today;
+                        dt.max = s.today;
+                    }
+                    document.querySelectorAll('.admin-only-col').forEach(function(th) { th.style.display = billingCanEdit ? '' : 'none'; });
+
+                    // payments
+                    var pb = document.getElementById('payRows');
+                    pb.innerHTML = '';
+                    if (!s.payments || !s.payments.length) {
+                        pb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;padding:18px;">لا توجد دفعات مسجلة</td></tr>';
+                    } else {
+                        s.payments.forEach(function(p) {
+                            var tr = document.createElement('tr');
+                            tr.innerHTML = '<td>' + escapeHtml(niceDate(p.paidOn)) + '</td>' +
+                                '<td class="num">' + money(p.amount) + '</td>' +
+                                '<td>' + escapeHtml(p.note || '-') + '</td>' +
+                                '<td style="direction:ltr;text-align:start;">' + escapeHtml(p.recordedBy || '-') + '</td>' +
+                                (billingCanEdit ? '<td><button class="small-btn danger" data-id="' + escapeHtml(p.id) + '">حذف</button></td>' : '');
+                            var del = tr.querySelector('button[data-id]');
+                            if (del) del.onclick = function() { deletePayment(p.id, p.amount); };
+                            pb.appendChild(tr);
+                        });
+                    }
+
+                    // invoices
+                    var ib = document.getElementById('invRows');
+                    ib.innerHTML = '';
+                    (s.invoices || []).forEach(function(inv) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td style="direction:ltr;text-align:start;">' + escapeHtml(inv.number) + '</td>' +
+                            '<td>' + escapeHtml(niceDate(inv.periodStart)) + ' – ' + escapeHtml(niceDate(inv.periodEnd)) + '</td>' +
+                            '<td class="num">' + money(inv.amount) + '</td>' +
+                            '<td class="num">' + money(inv.paid) + '</td>' +
+                            '<td class="num">' + money(inv.remaining) + '</td>' +
+                            '<td><span class="bill-pill s-' + inv.status + '">' + (BILL_STATUS[inv.status] || inv.status) + '</span></td>';
+                        ib.appendChild(tr);
+                    });
+                }
+
+                function recordPayment() {
+                    var amount = document.getElementById('payAmount').value.trim();
+                    var paidOn = document.getElementById('payDate').value;
+                    var note = document.getElementById('payNote').value;
+                    var msg = document.getElementById('payMsg');
+                    msg.className = 'bill-msg'; msg.textContent = '';
+                    if (!amount || Number(amount) <= 0) { msg.className = 'bill-msg err'; msg.textContent = 'أدخل مبلغاً صحيحاً'; return; }
+                    if (!confirm('تسجيل دفعة بمبلغ ' + money(amount) + ' بتاريخ ' + niceDate(paidOn) + '؟')) return;
+                    var btn = document.getElementById('payBtn');
+                    btn.disabled = true;
+                    fetch('/api/admin/billing/payments', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ amount: String(amount), paidOn: paidOn, note: note })
+                    }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+                    .then(function(res) {
+                        btn.disabled = false;
+                        if (res.ok && res.d.success) {
+                            msg.className = 'bill-msg ok'; msg.textContent = 'تم تسجيل الدفعة';
+                            document.getElementById('payNote').value = '';
+                            delete document.getElementById('payAmount').dataset.touched;
+                            renderBilling(res.d.summary);
+                        } else {
+                            msg.className = 'bill-msg err'; msg.textContent = res.d.message || 'تعذر تسجيل الدفعة';
+                        }
+                    }).catch(function() { btn.disabled = false; msg.className = 'bill-msg err'; msg.textContent = 'خطأ في الاتصال بالخادم'; });
+                }
+
+                function deletePayment(id, amount) {
+                    if (!confirm('حذف الدفعة بمبلغ ' + money(amount) + '؟ سيُعاد احتساب الرصيد.')) return;
+                    fetch('/api/admin/billing/payments/' + encodeURIComponent(id), { method: 'DELETE' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(d) { if (d.success) renderBilling(d.summary); });
+                }
+
+                (function() {
+                    var amt = document.getElementById('payAmount');
+                    if (amt) amt.addEventListener('input', function() { amt.dataset.touched = '1'; });
+                })();
+
+                // =========================================================
+                // ======================= VISITORS ========================
+                // =========================================================
+                var visDays = 30;
+                function visList(id, items, total) {
+                    var ul = document.getElementById(id);
+                    ul.innerHTML = '';
+                    if (!items || !items.length) { ul.innerHTML = '<li style="color:#666;">لا توجد بيانات بعد</li>'; return; }
+                    var max = items[0].count || 1;
+                    items.forEach(function(it) {
+                        var li = document.createElement('li');
+                        li.innerHTML = '<span></span><b>' + it.count + '</b><em><s style="width:' + Math.max(3, Math.round(it.count / max * 100)) + '%"></s></em>';
+                        li.firstChild.textContent = it.name;
+                        li.firstChild.title = it.name;
+                        ul.appendChild(li);
+                    });
+                }
+
+                function loadVisitors(days) {
+                    if (days) visDays = days;
+                    document.querySelectorAll('.vis-range button').forEach(function(b) { b.classList.toggle('active', +b.dataset.days === visDays); });
+                    return fetch('/api/admin/visitors?days=' + visDays).then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
+                        if (!d) return;
+                        document.getElementById('visToday').textContent = d.today.visits;
+                        document.getElementById('visTodayU').textContent = d.today.visitors + ' زائر';
+                        document.getElementById('visWeek').textContent = d.week.visits;
+                        document.getElementById('visWeekU').textContent = d.week.visitors + ' زائر';
+                        document.getElementById('visPeriodLabel').textContent = 'آخر ' + d.days + (d.days <= 10 ? ' أيام' : ' يوماً');
+                        document.getElementById('visPeriod').textContent = d.period.visits;
+                        document.getElementById('visPeriodU').textContent = d.period.visitors + ' زائر';
+                        document.getElementById('visReturning').textContent = d.returning;
+                        document.getElementById('visConsent').textContent = 'وافق على الكوكيز: \u2066' + d.consentRate + '%\u2069';
+
+                        // daily bars: full bar = visits, gold part = distinct visitors
+                        var chart = document.getElementById('visChart');
+                        chart.innerHTML = '';
+                        var max = Math.max(1, Math.max.apply(null, d.daily.map(function(x) { return x.visits; })));
+                        d.daily.forEach(function(x) {
+                            var bar = document.createElement('div');
+                            bar.className = 'vis-bar';
+                            bar.style.height = Math.max(2, x.visits / max * 100) + '%';
+                            bar.title = x.date + ' — ' + x.visits + ' زيارة، ' + x.visitors + ' زائر';
+                            var inner = document.createElement('i');
+                            inner.style.height = (x.visits ? x.visitors / x.visits * 100 : 0) + '%';
+                            bar.appendChild(inner);
+                            chart.appendChild(bar);
+                        });
+                        var axis = chart.nextElementSibling;
+                        if (!axis || !axis.classList.contains('vis-axis')) {
+                            axis = document.createElement('div'); axis.className = 'vis-axis'; chart.after(axis);
+                            var lg = document.createElement('div'); lg.className = 'vis-legend';
+                            lg.innerHTML = '<i style="background:rgba(212,175,55,0.25)"></i>زيارات<i style="background:#D4AF37"></i>زوار';
+                            axis.after(lg);
+                        }
+                        axis.innerHTML = '<span>' + d.daily[0].date + '</span><span>' + d.daily[d.daily.length - 1].date + '</span>';
+
+                        visList('visPages', d.pages);
+                        visList('visRefs', d.referrers);
+                        visList('visDevices', d.devices);
+                        visList('visBrowsers', d.browsers.concat(d.systems).sort(function(a, b) { return b.count - a.count; }).slice(0, 8));
+
+                        var pb = document.getElementById('visPeople');
+                        pb.innerHTML = '';
+                        if (!d.people.length) pb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#666;padding:18px;">لا يوجد زوار معروفون بعد</td></tr>';
+                        d.people.forEach(function(p) {
+                            var tr = document.createElement('tr');
+                            tr.innerHTML = '<td class="vis-mono">' + escapeHtml(p.id) + '</td><td class="vis-mono">' + escapeHtml(p.firstSeen) + '</td><td class="vis-mono">' + escapeHtml(p.lastSeen) + '</td>' +
+                                '<td>' + p.visits + (p.days > 1 ? ' <span style="color:#D4AF37;font-size:.75rem;">(' + p.days + ' أيام)</span>' : '') + '</td>' +
+                                '<td class="vis-mono">' + escapeHtml(p.pages.join('  ')) + '</td><td>' + escapeHtml(p.device) + '</td><td class="vis-mono">' + escapeHtml(p.ip) + '</td><td>' + escapeHtml(p.from) + '</td>';
+                            pb.appendChild(tr);
+                        });
+
+                        var rb = document.getElementById('visRecent');
+                        rb.innerHTML = '';
+                        if (!d.recent.length) rb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;padding:18px;">لا توجد زيارات بعد</td></tr>';
+                        d.recent.forEach(function(v) {
+                            var tr = document.createElement('tr');
+                            tr.innerHTML = '<td class="vis-mono">' + escapeHtml(v.time) + '</td><td class="vis-mono">' + escapeHtml(v.visitor || 'غير معروف') + '</td><td class="vis-mono">' + escapeHtml(v.path) + '</td>' +
+                                '<td>' + escapeHtml(v.from) + '</td><td>' + escapeHtml(v.device) + '</td><td class="vis-mono">' + escapeHtml(v.ip) + '</td>';
+                            rb.appendChild(tr);
+                        });
+                    }).catch(function() { });
+                }
+
                 var emailInput = document.getElementById('loginEmailInput');
                 var passInput = document.getElementById('loginPasswordInput');
                 if (emailInput) emailInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') adminLogin(); });
@@ -5592,7 +6301,7 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + "</style>\n</head>\n" + body + "\n</html>";
+            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + "</style>\n</head>\n" + body.Replace("%%MAPSV%%", AssetVersion) + "\n</html>";
         }
     }
 }

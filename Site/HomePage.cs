@@ -59,6 +59,7 @@ namespace ConsanWebApp
             }
 
             string firstIntl = PhoneIntl(Phones[0][1]);
+            var galleryItems = Store.GetGallery();
 
             string body = """
             <body class="has-hero">
@@ -152,6 +153,8 @@ namespace ConsanWebApp
                     </div>
                 </section>
 
+                %%GALLERY%%
+
                 <section class="sec" id="reach">
                     <div class="container">
                         <div class="reach-grid">
@@ -214,12 +217,14 @@ namespace ConsanWebApp
                        .Replace("%%PEOPLE%%", people.ToString())
                        .Replace("%%LAT%%", WorkshopPin[0].ToString(System.Globalization.CultureInfo.InvariantCulture))
                        .Replace("%%LNG%%", WorkshopPin[1].ToString(System.Globalization.CultureInfo.InvariantCulture))
+                       .Replace("%%GALLERY%%", GalleryHomeSection(galleryItems))
                        .Replace("%%FOOTER%%", GetFooterHtml())
                        .Replace("%%CONTACT%%", GetContactWidgetHtml());
 
             var extra = new Dictionary<string, object>
             {
                 ["archive"] = Store.GetArchivalAlbum(),
+                ["gallery"] = galleryItems.Take(8).Select(GalleryFeature.PublicView).ToList(),
                 ["pin"] = WorkshopPin,
                 ["bounds"] = DistrictBounds
             };

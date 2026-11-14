@@ -54,6 +54,9 @@
         document.querySelectorAll('.lang-switch button').forEach(function (b) {
             b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false');
         });
+        var code = document.getElementById('langCode');
+        if (code) code.textContent = lang === 'en' ? 'EN' : (lang === 'ku' ? 'KU' : 'ع');
+        closeLangMenu();
         root.classList.remove('me-pending');
         document.dispatchEvent(new CustomEvent('me:lang', { detail: lang }));
     }
@@ -87,14 +90,41 @@
     };
     window.toggleLangDropdown = function () { };
 
+    // ---- compact language menu (desktop) ----------------------------------
+    function closeLangMenu() {
+        var m = document.getElementById('langMenu');
+        var b = document.getElementById('langCurrent');
+        if (m) m.classList.remove('open');
+        if (b) b.setAttribute('aria-expanded', 'false');
+    }
+    window.toggleLangMenu = function (e) {
+        if (e) e.stopPropagation();
+        var m = document.getElementById('langMenu');
+        var b = document.getElementById('langCurrent');
+        if (!m) return;
+        var open = !m.classList.contains('open');
+        m.classList.toggle('open', open);
+        if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+            var cur = m.querySelector('.lang-switch [aria-pressed="true"]');
+            if (cur) cur.focus();
+        }
+    };
+
     // ---- contact sheet --------------------------------------------------
-    window.toggleContact = function (force) {
+    // remember=true when the visitor closes the numbers panel themselves: it then stays
+    // closed for the rest of this visit; it opens again on their next visit.
+    window.toggleContact = function (force, remember) {
         var box = document.getElementById('floatingContact');
         if (!box) return;
         var open = typeof force === 'boolean' ? force : !box.classList.contains('open');
         box.classList.toggle('open', open);
-        var badge = box.querySelector('.contact-badge');
-        if (badge) badge.setAttribute('aria-expanded', open ? 'true' : 'false');
+        var re = box.querySelector('.contact-reopen');
+        if (re) re.setAttribute('aria-expanded', open ? 'true' : 'false');
+        try {
+            if (open) sessionStorage.removeItem('me-contact-closed');
+            else if (remember) sessionStorage.setItem('me-contact-closed', '1');
+        } catch (e) { }
     };
     window.openWhatsApp = function (number) {
         window.open('https://wa.me/' + String(number).replace(/\D/g, ''), '_blank', 'noopener');
@@ -105,6 +135,8 @@
         // and put ours in front so the choice is remembered and the header follows.
         if (typeof window.switchLanguage === 'function') pageSwitch = window.switchLanguage;
         window.switchLanguage = function (lang) { setLang(lang); };
+
+        try { if (sessionStorage.getItem('me-contact-closed')) window.toggleContact(false); } catch (e) { }
 
         var saved = store('me-lang');
         if (saved === 'en' || saved === 'ku') setLang(saved, false);
@@ -133,15 +165,64 @@
             var menu = document.getElementById('navMenu');
             var toggle = document.querySelector('.nav-toggle');
             if (menu && menu.classList.contains('active') && !menu.contains(e.target) && toggle && !toggle.contains(e.target)) closeMenu();
-            var box = document.getElementById('floatingContact');
-            if (box && box.classList.contains('open') && !box.contains(e.target)) window.toggleContact(false);
+            var lm = document.getElementById('langMenu');
+            if (lm && lm.classList.contains('open') && !lm.contains(e.target)) closeLangMenu();
         });
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { closeMenu(); window.toggleContact(false); }
+            if (e.key === 'Escape') { closeMenu(); closeLangMenu(); }
         });
+
+        // Count this page view. Someone who has not answered the cookie question yet is
+        // counted without a cookie; the bar then asks once.
+        sendVisit();
+        consentBar();
 
         document.querySelectorAll('[data-years]').forEach(function (el) { el.textContent = years; });
         document.querySelectorAll('[data-year-now]').forEach(function (el) { el.textContent = new Date().getFullYear(); });
+    }
+
+    // ---- cookies & visit counting ------------------------------------------
+    function cookie(name) {
+        var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+    // only=true just issues the visitor cookie (after "Accept") without counting the page twice
+    function sendVisit(only) {
+        try {
+            var body = JSON.stringify({ path: location.pathname, ref: document.referrer || '', lang: ME.lang, w: String(screen.width || 0), only: only ? '1' : '' });
+            fetch('/api/visit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true, credentials: 'same-origin' }).catch(function () { });
+        } catch (e) { }
+    }
+    function setConsent(value) {
+        var secure = location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = 'me_consent=' + value + '; Max-Age=31536000; Path=/; SameSite=Lax' + secure;
+    }
+    function consentBar() {
+        if (cookie('me_consent')) return;
+        var bar = document.createElement('div');
+        bar.className = 'consent-bar';
+        bar.setAttribute('role', 'region');
+        bar.setAttribute('aria-label', 'Cookies');
+        bar.innerHTML = '<p data-i18n="cookieText"></p><div class="consent-actions">' +
+            '<button type="button" class="btn btn-brass" data-c="yes" data-i18n="cookieAccept"></button>' +
+            '<button type="button" class="btn btn-line" data-c="no" data-i18n="cookieDecline"></button></div>';
+        document.body.appendChild(bar);
+        ME.paint(bar);
+        var fit = function () { root.style.setProperty('--consent-h', bar.offsetHeight + 'px'); };
+        document.body.classList.add('consent-open');
+        fit();
+        window.addEventListener('resize', fit);
+        bar.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-c]');
+            if (!b) return;
+            var yes = b.getAttribute('data-c') === 'yes';
+            setConsent(yes ? 'yes' : 'no');
+            bar.remove();
+            document.body.classList.remove('consent-open');
+            window.removeEventListener('resize', fit);
+            if (yes) sendVisit(true); // issue the visitor cookie now
+        });
+        document.addEventListener('me:lang', function () { if (bar.isConnected) { ME.paint(bar); fit(); } });
     }
 
     // Deferred scripts run before DOMContentLoaded; waiting for it lets the page's own script go first.

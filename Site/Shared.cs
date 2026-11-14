@@ -16,7 +16,7 @@ namespace ConsanWebApp
     public static partial class Pages
     {
         // Bump when files under wwwroot/me change so browsers fetch the new ones.
-        public const string AssetVersion = "2026-11-13.2";
+        public const string AssetVersion = "2026-11-14.5";
         public const int FoundedYear = 1945;
         public const string SiteName = "ME Workshop";
         public const string SiteNameFull = "Middle Euphrates Workshop";
@@ -39,6 +39,23 @@ namespace ConsanWebApp
             // 07801763759 -> 0780 176 3759
             if (local == null || local.Length != 11) return local ?? "";
             return local.Substring(0, 4) + " " + local.Substring(4, 3) + " " + local.Substring(7);
+        }
+
+        // Every general enquiry (service requests, the contact button) goes to the first line's WhatsApp.
+        public static string PrimaryWhatsApp { get { return PhoneIntl(Phones[0][1]); } }
+
+        public static string WhatsAppUrl(string text)
+        {
+            return "https://wa.me/" + PrimaryWhatsApp + "?text=" + Uri.EscapeDataString(text);
+        }
+
+        public const string ServiceWhatsAppText = "السلام عليكم، أريد طلب خدمة من ورشة الفرات الأوسط (ME Workshop).";
+        public const string ContactWhatsAppText = "السلام عليكم، لدي استفسار لورشة الفرات الأوسط (ME Workshop).";
+
+        // An <a> attribute string that opens WhatsApp with a ready message (new tab on desktop, the app on phones).
+        public static string WaAttrs(string text)
+        {
+            return "href=\"" + System.Net.WebUtility.HtmlEncode(WhatsAppUrl(text)) + "\" target=\"_blank\" rel=\"noopener\"";
         }
 
         public static string PhoneIntl(string local)
@@ -192,14 +209,22 @@ namespace ConsanWebApp
                         <li><a class="nav-link" href="/#story" data-i18n="navAbout">[[navAbout]]</a></li>
                         <li><a class="nav-link" href="/#craft" data-i18n="navServices">[[navServices]]</a></li>
                         <li><a class="nav-link" href="/industrial-services" data-i18n="navIndustrial">[[navIndustrial]]</a></li>
+                        <li><a class="nav-link" href="/gallery" data-i18n="navGallery">[[navGallery]]</a></li>
                         <li><a class="nav-link" href="/explorer" data-i18n="navExplorer">[[navExplorer]]</a></li>
                         <li><a class="nav-link" href="/guide" data-i18n="navGuide">[[navGuide]]</a></li>
                         <li>
                             <div class="nav-controls">
-                                <div class="lang-switch" role="group" aria-label="Language">
-                                    <button type="button" data-lang="ar" aria-pressed="true" onclick="switchLanguage('ar')">عربي</button>
-                                    <button type="button" data-lang="en" aria-pressed="false" onclick="switchLanguage('en')">EN</button>
-                                    <button type="button" data-lang="ku" aria-pressed="false" onclick="switchLanguage('ku')">کوردی</button>
+                                <div class="lang-menu" id="langMenu">
+                                    <!-- desktop: one compact button that opens the list; phone menu: the list is shown inline -->
+                                    <button type="button" class="lang-current" id="langCurrent" onclick="toggleLangMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="langOptions" aria-label="Language / اللغة">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></svg>
+                                        <span class="lang-code" id="langCode">ع</span>
+                                    </button>
+                                    <div class="lang-switch" id="langOptions" role="group" aria-label="Language">
+                                        <button type="button" data-lang="ar" aria-pressed="true" onclick="switchLanguage('ar')">عربي</button>
+                                        <button type="button" data-lang="en" aria-pressed="false" onclick="switchLanguage('en')">EN</button>
+                                        <button type="button" data-lang="ku" aria-pressed="false" onclick="switchLanguage('ku')">کوردی</button>
+                                    </div>
                                 </div>
                                 <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Light / dark">
                                     <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
@@ -215,7 +240,7 @@ namespace ConsanWebApp
                 </div>
                 <!-- Targets the inner pages' own scripts still write to. Kept out of sight. -->
                 <div id="legacySink" hidden>
-                    <span id="navHome"></span><span id="navAbout"></span><span id="navServices"></span><span id="navIndustrial"></span><span id="navExplorer"></span><span id="navGuide"></span>
+                    <span id="navHome"></span><span id="navAbout"></span><span id="navServices"></span><span id="navIndustrial"></span><span id="navExplorer"></span><span id="navGuide"></span><span id="navGallery"></span>
                     <span id="langOptAr"></span><span id="langOptEn"></span><span id="langOptKu"></span><span id="langDropdown"></span><span id="globeBtn"></span>
                     <span id="lightIcon"></span><span id="darkIcon"></span>
                     <span id="footerText"></span><span id="footerCopy"></span><span id="footerLinkedin"></span><span id="footerFacebook"></span><span id="footerInstagram"></span>
@@ -254,6 +279,7 @@ namespace ConsanWebApp
                                 <li><a href="/#story" data-i18n="navAbout">[[navAbout]]</a></li>
                                 <li><a href="/#craft" data-i18n="navServices">[[navServices]]</a></li>
                                 <li><a href="/industrial-services" data-i18n="navIndustrial">[[navIndustrial]]</a></li>
+                                <li><a href="/gallery" data-i18n="navGallery">[[navGallery]]</a></li>
                                 <li><a href="/explorer" data-i18n="navExplorer">[[navExplorer]]</a></li>
                                 <li><a href="/guide" data-i18n="navGuide">[[navGuide]]</a></li>
                                 <li><a href="/service" data-i18n="navCta">[[navCta]]</a></li>
@@ -272,7 +298,8 @@ namespace ConsanWebApp
                 </div>
             </footer>
             """.Replace("%%BRAND%%", GetBrandSvg().Replace("brand-icon", "footer-brand-icon").Replace("meBrass", "meBrassF"))
-               .Replace("%%PHONES%%", phones.ToString());
+               .Replace("%%PHONES%%", phones.ToString())
+               ;
         }
 
         private const string PhoneSvg = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1L6.6 10.8z\"/></svg>";
@@ -290,20 +317,29 @@ namespace ConsanWebApp
                     .Append("<a class=\"icon-btn\" href=\"https://wa.me/").Append(intl).Append("\" target=\"_blank\" rel=\"noopener\" data-i18n-label=\"waLabel\" aria-label=\"[[waLabel]]\">").Append(WhatsAppSvg).Append("</a></li>");
             }
 
+            // The workshop's numbers are shown open when a page loads (the visitor can close them;
+            // that choice lasts for the visit). The brass button below always opens WhatsApp
+            // with the first line.
             return """
-            <div class="floating-contact" id="floatingContact">
-                <div class="contact-sheet" id="contactSheet" role="dialog" aria-labelledby="contactSheetTitle">
+            <div class="floating-contact open" id="floatingContact">
+                <div class="contact-sheet" id="contactSheet" role="region" aria-labelledby="contactSheetTitle">
                     <div class="contact-sheet-head">
                         <strong id="contactSheetTitle" data-i18n="contactTitle">[[contactTitle]]</strong>
-                        <button type="button" class="close-btn" onclick="toggleContact(false)" aria-label="Close"><svg viewBox="0 0 24 24" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                        <button type="button" class="close-btn" onclick="toggleContact(false, true)" data-i18n-label="galleryClose" aria-label="[[galleryClose]]"><svg viewBox="0 0 24 24" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                     </div>
                     <ul class="phone-rows">%%ROWS%%</ul>
                 </div>
-                <button type="button" class="btn btn-brass contact-badge" onclick="toggleContact()" aria-expanded="false" aria-controls="contactSheet">
-                    %%PHONE%%<span data-i18n="contactBadgeText">[[contactBadgeText]]</span>
-                </button>
+                <div class="contact-actions">
+                    <a class="btn btn-brass contact-badge" %%WACONTACT%% data-i18n-label="waBadgeLabel" aria-label="[[waBadgeLabel]]">
+                        %%WAICON%%<span data-i18n="waBadgeText">[[waBadgeText]]</span>
+                    </a>
+                    <button type="button" class="contact-reopen" onclick="toggleContact(true)" aria-controls="contactSheet" aria-expanded="true" data-i18n-label="contactTitle" aria-label="[[contactTitle]]">%%PHONE%%</button>
+                </div>
             </div>
-            """.Replace("%%ROWS%%", rows.ToString()).Replace("%%PHONE%%", PhoneSvg.Replace("<svg ", "<svg fill=\"currentColor\" "));
+            """.Replace("%%ROWS%%", rows.ToString())
+               .Replace("%%WACONTACT%%", WaAttrs(ContactWhatsAppText))
+               .Replace("%%WAICON%%", WhatsAppSvg.Replace("<svg ", "<svg fill=\"currentColor\" "))
+               .Replace("%%PHONE%%", PhoneSvg.Replace("<svg ", "<svg fill=\"currentColor\" "));
         }
     }
 }
