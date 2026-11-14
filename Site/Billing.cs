@@ -1,5 +1,5 @@
 // =============================================================================
-// ME Workshop — monthly website maintenance (billing)
+// ME Workshop — monthly website upkeep, "الإدامة الشهرية" (billing)
 // A fixed monthly charge that renews on the same day each month, starting on
 // StartDate. Unpaid amounts carry forward. Payments are recorded by an Admin and
 // are applied to the oldest open month first. Stored in <data>/billing.json.
@@ -150,7 +150,7 @@ namespace ConsanWebApp
 
             return new
             {
-                plan = "الصيانة الشهرية للموقع",
+                plan = "الإدامة الشهرية للموقع",
                 currency = b.Currency,
                 monthlyAmount = amount,
                 startDate = b.StartDate,

@@ -3590,7 +3590,18 @@ namespace ConsanWebApp
             .pin-notice button { margin-inline-start: auto; background: none; border: 1px solid #f87171; color: #fca5a5; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 0.8rem; cursor: pointer; }
             @media (max-width: 600px) { .pin-notice { margin: 10px 14px 0; } .pin-notice button { margin-inline-start: 0; } }
 
-            /* ===== Monthly maintenance / billing ===== */
+            /* ===== Monthly upkeep (الإدامة) / billing ===== */
+            .bill-info { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-inline-start: 6px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: #D4AF37; font: 800 12px/1 Arial, sans-serif; cursor: help; vertical-align: middle; padding: 0; }
+            .invoice .bill-info { color: #8a7340; }
+            .bill-info:focus-visible { outline: 2px solid #D4AF37; outline-offset: 2px; }
+            .bill-pop { position: absolute; top: calc(100% + 10px); inset-inline-start: -12px; z-index: 50; width: min(360px, 86vw); padding: 14px 16px; background: #fbfaf7; color: #222; border: 1px solid #d8d2c4; border-radius: 10px; box-shadow: 0 18px 44px rgba(0,0,0,0.35); text-align: start; font: 400 0.82rem/1.75 'Segoe UI', Tahoma, Arial, sans-serif; cursor: auto; display: none; }
+            .bill-pop strong { display: block; font-size: 0.9rem; color: #111; margin-bottom: 6px; }
+            .bill-pop ul { list-style: none; display: grid; gap: 6px; }
+            .bill-pop li { padding-inline-start: 12px; border-inline-start: 2px solid #c9b48a; }
+            .bill-pop b { color: #6e5222; }
+            .bill-info:hover .bill-pop, .bill-info:focus .bill-pop, .bill-info.open .bill-pop { display: block; }
+            @media (max-width: 600px) { .bill-pop { position: fixed; inset: auto 12px 12px 12px; top: auto; width: auto; } }
+            /* ===== billing layout ===== */
             .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
             .bill-strip { display: flex; align-items: center; gap: 14px 22px; flex-wrap: wrap; margin: 14px 28px 0; padding: 12px 18px; border: 1px solid #2c2c2c; border-inline-start: 3px solid #D4AF37; border-radius: 10px; background: #171717; font-size: 0.88rem; }
             .bill-strip[hidden] { display: none; }
@@ -4063,7 +4074,7 @@ namespace ConsanWebApp
                     <div class="bill-strip" id="billStrip" hidden>
                         <div class="bill-strip-main">
                             <span class="bill-dot" id="billStripDot"></span>
-                            <span class="bill-strip-label">الصيانة الشهرية للموقع</span>
+                            <span class="bill-strip-label">الإدامة الشهرية للموقع</span><button type="button" class="bill-info" aria-label="لماذا هذه الفاتورة؟" onclick="toggleBillInfo(event, this)">!</button>
                             <span class="bill-strip-status" id="billStripStatus"></span>
                         </div>
                         <div class="bill-strip-meta" id="billStripMeta"></div>
@@ -4086,7 +4097,7 @@ namespace ConsanWebApp
                         <button class="tab-btn" data-tab="explorer" onclick="switchAdminTab('explorer')">بطاقات المستكشف</button>
                         <button class="tab-btn" data-tab="guide" onclick="switchAdminTab('guide')">محتوى الدليل</button>
                         <button class="tab-btn" data-tab="visitors" onclick="switchAdminTab('visitors')">الزوار</button>
-                        <button class="tab-btn" data-tab="billing" onclick="switchAdminTab('billing')">الفوترة والصيانة</button>
+                        <button class="tab-btn" data-tab="billing" onclick="switchAdminTab('billing')">الفوترة والإدامة</button>
                     </nav>
 
                     <!-- ===== USERS & ACCOUNTS TAB ===== -->
@@ -4448,6 +4459,19 @@ namespace ConsanWebApp
                         <p class="vis-note">يُعرَف الزائر برقم ثابت فقط إذا وافق على الكوكيز. الزائر الذي لم يوافق تُحسب زيارته دون كوكيز ويُخفى آخر جزء من عنوان IP الخاص به. زيارات فريق الإدارة لا تُحسب.</p>
                     </section>
 
+                    <template id="billInfoTpl">
+                        <div class="bill-pop" role="tooltip">
+                            <strong>ما الذي تشمله الإدامة الشهرية؟</strong>
+                            <ul>
+                                <li><b>الخادم والاستضافة:</b> كل زيارة للموقع تستهلك موارد الخادم، والخادم يُدفع له اشتراك شهري ليبقى الموقع متاحاً وسريعاً على مدار الساعة.</li>
+                                <li><b>عمل المطوّرين:</b> فريق تطوير يتابع الموقع باستمرار، يعالج أي ملاحظة ويضيف ما يلزم.</li>
+                                <li><b>المراقبة والتحسين:</b> أدوات مراقبة تتابع أداء الموقع وزياراته، لنعرف ما يحتاج إلى تحسين ونطوّره.</li>
+                                <li><b>التحديث المستمر:</b> الموقع يُحدَّث ويتطوّر شهراً بعد شهر ليبقى حديثاً وآمناً.</li>
+                                <li><b>التقرير الشهري:</b> تقرير كل شهر بالزيارات والأداء وما تم إنجازه، لتطّلع على قيمة ما تحصل عليه.</li>
+                            </ul>
+                        </div>
+                    </template>
+
                     <!-- ===== BILLING TAB ===== -->
                     <section id="tab-billing" class="tab-panel">
                         <div class="bill-layout">
@@ -4455,21 +4479,21 @@ namespace ConsanWebApp
                                 <header class="invoice-head">
                                     <div>
                                         <div class="invoice-kicker">فاتورة</div>
-                                        <h2 class="invoice-title">الصيانة الشهرية للموقع</h2>
+                                        <h2 class="invoice-title">الإدامة الشهرية للموقع <button type="button" class="bill-info" aria-label="لماذا هذه الفاتورة؟" onclick="toggleBillInfo(event, this)">!</button></h2>
                                         <div class="invoice-sub">ورشة الفرات الأوسط — ME Workshop</div>
-                                        <div class="invoice-essential">خدمة أساسية وإلزامية لاستمرار عمل الموقع وأمانه واستقراره</div>
+                                        <div class="invoice-essential">تضمن عمل الموقع بكفاءة وأمان، وتطويره وتحسينه شهراً بعد شهر</div>
                                     </div>
                                     <div class="invoice-status" id="invStatus"></div>
                                 </header>
                                 <dl class="invoice-meta">
                                     <div><dt>رقم الفاتورة</dt><dd id="invNumber" class="ltr">-</dd></div>
-                                    <div><dt>فترة الصيانة</dt><dd id="invPeriod">-</dd></div>
+                                    <div><dt>فترة الإدامة</dt><dd id="invPeriod">-</dd></div>
                                     <div><dt>تاريخ الاستحقاق</dt><dd id="invDue">-</dd></div>
                                     <div><dt>الاستحقاق القادم</dt><dd id="invNext">-</dd></div>
                                 </dl>
                                 <table class="invoice-lines">
                                     <tbody>
-                                        <tr><td>رسوم الصيانة الشهرية للموقع</td><td class="num" id="invMonthly">-</td></tr>
+                                        <tr><td>رسوم الإدامة الشهرية للموقع <button type="button" class="bill-info" aria-label="لماذا هذه الفاتورة؟" onclick="toggleBillInfo(event, this)">!</button></td><td class="num" id="invMonthly">-</td></tr>
                                         <tr><td>رصيد سابق غير مسدد</td><td class="num" id="invPrev">-</td></tr>
                                         <tr class="credit-row" id="invCreditRow" hidden><td>رصيد دائن (مدفوع مقدماً)</td><td class="num" id="invCredit">-</td></tr>
                                     </tbody>
@@ -4477,7 +4501,7 @@ namespace ConsanWebApp
                                         <tr><td>المبلغ المستحق</td><td class="num" id="invTotal">-</td></tr>
                                     </tfoot>
                                 </table>
-                                <p class="invoice-note">تُستحق رسوم الصيانة في اليوم <span id="invDay" class="ltr">13</span> من كل شهر وتتجدد تلقائياً. أي مبلغ غير مسدد يُرحَّل إلى الفاتورة التالية.</p>
+                                <p class="invoice-note">تُستحق رسوم الإدامة في اليوم <span id="invDay" class="ltr">13</span> من كل شهر وتتجدد تلقائياً. أي مبلغ غير مسدد يُرحَّل إلى الفاتورة التالية.</p>
                             </article>
 
                             <aside class="bill-side">
@@ -6078,6 +6102,22 @@ namespace ConsanWebApp
                     var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
                     try { return d.toLocaleDateString('ar-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }); }
                     catch (e) { return s; }
+                }
+
+                // "!" notes: fill each with the explanation; hover/focus shows it, a tap toggles it on phones
+                (function() {
+                    var tpl = document.getElementById('billInfoTpl');
+                    document.querySelectorAll('.bill-info').forEach(function(b) {
+                        if (tpl && !b.querySelector('.bill-pop')) b.appendChild(tpl.content.firstElementChild.cloneNode(true));
+                    });
+                    document.addEventListener('click', function(e) {
+                        document.querySelectorAll('.bill-info.open').forEach(function(b) { if (!b.contains(e.target)) b.classList.remove('open'); });
+                    });
+                })();
+                function toggleBillInfo(e, btn) {
+                    e.stopPropagation();
+                    if (e.target.closest && e.target.closest('.bill-pop')) return;
+                    btn.classList.toggle('open');
                 }
 
                 function loadBilling() {
