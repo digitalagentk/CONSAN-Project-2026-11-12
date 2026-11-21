@@ -459,7 +459,7 @@ namespace ConsanWebApp
             return s.Length > 300 ? s.Substring(0, 300) : s;
         }
 
-        private static bool Matches(byte[] b, int n, string kind)
+        internal static bool Matches(byte[] b, int n, string kind)
         {
             switch (kind)
             {

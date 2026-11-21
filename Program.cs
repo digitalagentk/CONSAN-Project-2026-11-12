@@ -152,6 +152,7 @@ namespace ConsanWebApp
             app.UseDefaultFiles();
             app.UseStaticFiles();
             GalleryFeature.UseGalleryFiles(app);
+            SiteImages.UseUploadFiles(app);
 
             // ⚠️ مهم: UseAuthentication و UseAuthorization قبل الـ endpoints
             app.UseAuthentication();
@@ -492,6 +493,8 @@ namespace ConsanWebApp
                 if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var pin = await Store.ReadMapPin(ctx);
                 if (pin == null) return Results.Json(new { message = "invalid body" }, statusCode: 400);
+                string err = Store.ValidatePin(pin);
+                if (err != null) return Results.Json(new { success = false, message = err }, statusCode: 400);
                 var ok = Store.UpdateMapPin(id, pin);
                 return ok ? Results.Json(new { success = true }) : Results.Json(new { message = "not found" }, statusCode: 404);
             });
@@ -516,13 +519,13 @@ namespace ConsanWebApp
             // =========================================================
             app.MapGet("/api/admin/archival-album", (HttpContext ctx) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 return Results.Json(Store.GetArchivalAlbum());
             });
 
             app.MapPost("/api/admin/archival-album", async (HttpContext ctx) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var item = await Store.ReadArchivalItem(ctx);
                 if (item == null) return Results.Json(new { message = "invalid body" }, statusCode: 400);
                 var created = Store.AddArchivalItem(item);
@@ -531,7 +534,7 @@ namespace ConsanWebApp
 
             app.MapPut("/api/admin/archival-album/{id}", async (HttpContext ctx, string id) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var item = await Store.ReadArchivalItem(ctx);
                 if (item == null) return Results.Json(new { message = "invalid body" }, statusCode: 400);
                 var ok = Store.UpdateArchivalItem(id, item);
@@ -540,7 +543,7 @@ namespace ConsanWebApp
 
             app.MapDelete("/api/admin/archival-album/{id}", (HttpContext ctx, string id) =>
             {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
+                if (!AuthExtensions.IsDashboardUser(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
                 var ok = Store.DeleteArchivalItem(id);
                 return ok ? Results.Json(new { success = true }) : Results.Json(new { message = "not found" }, statusCode: 404);
             });
@@ -602,35 +605,8 @@ namespace ConsanWebApp
                 return Results.Json(new { success = true });
             });
 
-            // =========================================================
-            // ==================  ADMIN: IMAGE UPLOAD  ====================
-            // =========================================================
-            app.MapPost("/api/admin/upload-image", async (HttpContext ctx) =>
-            {
-                if (!AuthExtensions.IsAdminOrLegacy(ctx)) return Results.Json(new { message = "unauthorized" }, statusCode: 401);
-                if (!ctx.Request.HasFormContentType) return Results.Json(new { message = "expected form data" }, statusCode: 400);
-
-                var form = await ctx.Request.ReadFormAsync();
-                var file = form.Files["file"];
-                if (file == null || file.Length == 0) return Results.Json(new { message = "no file uploaded" }, statusCode: 400);
-
-                string ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                string[] allowed = { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
-                if (Array.IndexOf(allowed, ext) < 0)
-                    return Results.Json(new { message = "unsupported file type" }, statusCode: 400);
-
-                string safeName = Guid.NewGuid().ToString("N") + ext;
-                string uploadsDir = Path.Combine(contentRoot, "wwwroot", "uploads");
-                Directory.CreateDirectory(uploadsDir);
-                string fullPath = Path.Combine(uploadsDir, safeName);
-
-                using (var stream = File.Create(fullPath))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-                return Results.Json(new { success = true, url = "/uploads/" + safeName });
-            });
+            // Image upload (/api/admin/upload-image) and hero photos: Site/Images.cs
+            SiteImages.MapSiteImages(app);
 
             Console.WriteLine("========================================");
             Console.WriteLine("  ME Workshop - Middle Euphrates Workshop");
@@ -3483,7 +3459,7 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return PageShell("الخدمات الصناعية | ورشة الفرات الأوسط — ME Workshop", css, body.Replace("%%MAPSV%%", AssetVersion));
+            return PageShell("الخدمات الصناعية | ورشة الفرات الأوسط — ME Workshop", css, body.Replace("%%MAPSV%%", AssetVersion), MapConfig());
         }
 
         // =========================================================
@@ -3852,6 +3828,38 @@ namespace ConsanWebApp
                 accent-color: #D4AF37 !important;
             }
 
+            .map-help { color: #aaa; font-size: 0.82rem; line-height: 1.8; margin-bottom: 6px; }
+            .map-find { display: flex; gap: 8px; margin-bottom: 10px; }
+            .map-find input { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: #0f0f10; color: #eee; font-family: inherit; font-size: 0.82rem; }
+            .pin-editor { background: #161616; border: 1px solid rgba(212,175,55,0.3); border-radius: 16px; padding: 16px; }
+            .pin-editor.editing { border-color: #D4AF37; box-shadow: 0 0 0 2px rgba(212,175,55,0.15); }
+            .pin-editor-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+            .pin-editor-head h3 { color: #D4AF37; font-size: 0.95rem; }
+            .pin-editor-empty { color: #888; font-size: 0.82rem; padding: 18px 0; text-align: center; }
+            .pin-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 0.72rem; color: #999; }
+            .admin-pin-editing .me-pin, .admin-pin-editing .me-hq { outline: 3px solid #4ade80; outline-offset: 3px; }
+            .admin-temp-pin { width: 22px; height: 22px; border-radius: 50%; background: #4ade80; border: 3px solid #0b0b0b; box-shadow: 0 0 0 3px #4ade80, 0 6px 14px rgba(0,0,0,.5); }
+            .pending-pin-dot { background:#ffb86b; width:14px; height:14px; border-radius:50%; border:3px solid #fff; box-shadow:0 2px 10px rgba(0,0,0,0.5); }
+            .content-text-title { color: #D4AF37; font-size: 0.9rem; margin: 6px 0 12px; }
+            .img-help { color: #aaa; font-size: 0.82rem; margin-bottom: 12px; }
+            .img-pick { display: inline-flex; align-items: center; cursor: pointer; }
+            .img-status { font-size: 0.8rem; color: #9fd39f; word-break: break-word; }
+            .img-status.err { color: #ff8a8a; }
+            .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 12px; }
+            .hero-empty { color: #888; font-size: 0.85rem; padding: 18px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; text-align: center; grid-column: 1 / -1; }
+            .hero-card { background: #161616; border: 1px solid rgba(212,175,55,0.25); border-radius: 10px; overflow: hidden; }
+            .hero-thumb { position: relative; aspect-ratio: 16 / 9; background: #0b0b0b; }
+            .hero-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+            .hero-thumb.broken img { display: none; }
+            .hero-thumb.broken::after { content: 'تعذر عرض الصورة'; position: absolute; inset: 0; display: grid; place-items: center; color: #ff8a8a; font-size: 0.8rem; }
+            .hero-num { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #D4AF37; border-radius: 50px; padding: 1px 9px; font-size: 0.75rem; font-weight: 700; }
+            .hero-card-actions { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; }
+            .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+            .img-field { display: flex; gap: 12px; align-items: flex-start; grid-column: 1 / -1; }
+            .img-preview { width: 180px; aspect-ratio: 4 / 3; flex: none; border-radius: 8px; overflow: hidden; background: #0b0b0b; border: 1px dashed rgba(255,255,255,0.15); display: grid; place-items: center; color: #777; font-size: 0.78rem; }
+            .img-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+            .img-field-ctrl { flex: 1; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+            .img-field-ctrl input[type="text"] { width: 100%; }
             .admin-map-instruction {
                 position: absolute;
                 top: 16px;
@@ -4084,14 +4092,15 @@ namespace ConsanWebApp
                     <div class="pin-notice" id="pinPendingNotice" hidden>
                         <span class="pin-notice-dot"></span>
                         <span id="pinPendingText"></span>
-                        <button type="button" onclick="switchAdminTab('industrial'); setTimeout(function(){ var el=document.getElementById('pendingPinsBody'); if (el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, 200);">مراجعة الطلبات</button>
+                        <button type="button" onclick="switchAdminTab('map'); setTimeout(function(){ var el=document.getElementById('pendingPinsBody'); if (el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, 200);">مراجعة الطلبات</button>
                     </div>
 
                     <nav class="admin-tabs">
                         <button class="tab-btn active" data-tab="accounts" onclick="switchAdminTab('accounts')">المستخدمين والحسابات</button>
                         <button class="tab-btn" data-tab="requests" onclick="switchAdminTab('requests')">طلبات الخدمة</button>
                         <button class="tab-btn" data-tab="content" onclick="switchAdminTab('content')">محتوى الصفحة الرئيسية</button>
-                        <button class="tab-btn" data-tab="industrial" onclick="switchAdminTab('industrial')">الخدمات الصناعية والخريطة</button>
+                        <button class="tab-btn" data-tab="industrial" onclick="switchAdminTab('industrial')">الخدمات الصناعية</button>
+                        <button class="tab-btn" data-tab="map" onclick="switchAdminTab('map')">الخريطة والمواقع</button>
                         <button class="tab-btn" data-tab="gallery" onclick="switchAdminTab('gallery')">معرض الصور والفيديو</button>
                         <button class="tab-btn" data-tab="album" onclick="switchAdminTab('album')">الأرشيف والصور التاريخية</button>
                         <button class="tab-btn" data-tab="explorer" onclick="switchAdminTab('explorer')">بطاقات المستكشف</button>
@@ -4171,6 +4180,21 @@ namespace ConsanWebApp
                     </section>
 
                     <section id="tab-content" class="tab-panel">
+                        <fieldset style="margin-bottom: 22px;">
+                            <legend>صور شريط الواجهة (Hero Slider)</legend>
+                            <p class="img-help">اختر الصور من جهازك. تُحفظ التغييرات فوراً وتظهر في أعلى الصفحة الرئيسية بالترتيب أدناه (حتى 8 صور).</p>
+                            <div class="hero-grid" id="heroGrid"></div>
+                            <div class="hero-actions">
+                                <label class="small-btn primary img-pick">
+                                    + إضافة صور من الجهاز
+                                    <input type="file" id="heroAddInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onchange="addHeroFiles(this)" />
+                                </label>
+                                <button type="button" class="small-btn" onclick="addHeroUrl()">إضافة برابط</button>
+                                <span class="img-status" id="heroStatus"></span>
+                            </div>
+                        </fieldset>
+
+                        <h3 class="content-text-title">نصوص الصفحة الرئيسية (Admin)</h3>
                         <div class="content-lang-tabs">
                             <button class="lang-tab-btn active" data-lang="ar" onclick="switchContentLang('ar')">العربية</button>
                             <button class="lang-tab-btn" data-lang="en" onclick="switchContentLang('en')">English</button>
@@ -4179,20 +4203,6 @@ namespace ConsanWebApp
                         <div id="contentFields-ar" class="content-fields"></div>
                         <div id="contentFields-en" class="content-fields hidden"></div>
                         <div id="contentFields-ku" class="content-fields hidden"></div>
-
-                        <fieldset>
-                            <legend>صور شريط الواجهة (Hero Slider)</legend>
-                            <input type="text" id="heroImage0" placeholder="رابط صورة 1" />
-                            <input type="text" id="heroImage1" placeholder="رابط صورة 2" />
-                            <input type="text" id="heroImage2" placeholder="رابط صورة 3" />
-                            <input type="text" id="heroImage3" placeholder="رابط صورة 4" />
-                        </fieldset>
-
-                        <div class="upload-box">
-                            <input type="file" id="imageUploadInput" accept="image/*" />
-                            <button class="small-btn primary" onclick="uploadImage()">رفع صورة</button>
-                            <span id="uploadResult"></span>
-                        </div>
 
                         <button class="save-btn" onclick="saveContent()">حفظ كل تغييرات الصفحة الرئيسية</button>
                     </section>
@@ -4207,101 +4217,92 @@ namespace ConsanWebApp
                         <div id="indFields-en" class="content-fields hidden"></div>
                         <div id="indFields-ku" class="content-fields hidden"></div>
 
-                        <fieldset>
-                            <legend>رابط خريطة جوجل الافتراضي (Google Maps Embed URL)</legend>
-                            <input type="text" id="mapEmbedUrlInput" placeholder="https://www.google.com/maps?q=...&output=embed" />
-                        </fieldset>
 
                         <button class="save-btn" onclick="saveIndustrialContent()">حفظ تغييرات الخدمات الصناعية</button>
 
-                        <!-- ===== ADMIN INTERACTIVE MAP + TABLES — SIDE-BY-SIDE SPLIT VIEW WITH ACCORDION ===== -->
-                        <fieldset style="margin-top: 26px;">
-                            <legend>الخريطة التفاعلية — إدارة المواقع والأقسام</legend>
+                    </section>
+
+                    <!-- ===== MAP & LOCATIONS TAB ===== -->
+                    <section id="tab-map" class="tab-panel">
+                        <fieldset>
+                            <legend>الخريطة والمواقع — موقع الورشة والأقسام</legend>
+                            <p class="map-help">
+                                موقع <b>الورشة</b> هنا هو نفسه المستخدم في كل خرائط الموقع (الصفحة الرئيسية، صفحة الخدمات الصناعية، زر الاتجاهات).
+                                لإضافة موقع: انقر على الخريطة ثم املأ الاسم واحفظ. لتعديل موقع: اضغط «تعديل» ثم اسحب العلامة أو انقر في المكان الجديد.
+                            </p>
 
                             <div class="admin-split-view">
-                                <!-- LEFT COLUMN: Map Card (480px height for better vertical scanning) -->
                                 <div class="admin-map-column">
                                     <div class="admin-map-card">
                                         <div class="admin-map-header">
-                                            <h3>الخريطة التفاعلية</h3>
-                                            <span class="map-hint">انقر على الخريطة لإضافة موقع</span>
+                                            <h3>الخريطة</h3>
+                                            <button type="button" class="small-btn" onclick="fitAllPins()">عرض كل المواقع</button>
+                                        </div>
+                                        <div class="map-find">
+                                            <input type="text" id="pinFindInput" placeholder="الصق رابط Google Maps أو إحداثيات مثل 32.0118, 44.3775" onkeydown="if(event.key==='Enter'){event.preventDefault();findPinLocation();}" />
+                                            <button type="button" class="small-btn primary" onclick="findPinLocation()">انتقال</button>
                                         </div>
                                         <div class="admin-map-container">
                                             <div id="adminMap"></div>
-                                            <div class="admin-map-instruction">انقر على الخريطة لإضافة موقع جديد مباشرة (موافَق عليه تلقائياً)</div>
+                                            <div class="admin-map-instruction" id="adminMapInstruction">انقر على الخريطة لوضع موقع جديد</div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- RIGHT COLUMN: Tables as Accordion Panels -->
                                 <div class="admin-tables-column">
-                                    <!-- Approved Locations Accordion (moved to top) -->
-                                    <div class="accordion-panel collapsed" id="approvedAccordion">
+                                    <div class="pin-editor" id="pinEditor">
+                                        <div class="pin-editor-head">
+                                            <h3 id="pinEditorTitle">إضافة موقع جديد</h3>
+                                            <button type="button" class="small-btn" id="pinCancelBtn" onclick="cancelPinEdit()" hidden>إلغاء</button>
+                                        </div>
+                                        <div class="pin-editor-empty" id="pinEditorEmpty">انقر على الخريطة لوضع علامة، أو اختر «تعديل» من قائمة المواقع أدناه.</div>
+                                        <div id="pinEditorBody" hidden>
+                                            <div class="pin-form-grid">
+                                                <label>الاسم بالعربية *<input type="text" id="pinNameAr" placeholder="مثال: قسم تصليح البمبات" /></label>
+                                                <label>Name (English)<input type="text" id="pinNameEn" placeholder="e.g. Pump repair department" /></label>
+                                                <label>ناو (کوردی)<input type="text" id="pinNameKu" /></label>
+                                                <label>العنوان (عربي)<input type="text" id="pinAddressAr" placeholder="النجف الأشرف - الحي الصناعي" /></label>
+                                                <label>Address (English)<input type="text" id="pinAddressEn" /></label>
+                                                <label>ناونیشان (کوردی)<input type="text" id="pinAddressKu" /></label>
+                                                <label>رقم الهاتف<input type="text" id="pinPhone" placeholder="07xx xxx xxxx" dir="ltr" /></label>
+                                                <label>خط العرض<input type="text" id="pinLat" dir="ltr" oninput="pinCoordsTyped()" /></label>
+                                                <label>خط الطول<input type="text" id="pinLng" dir="ltr" oninput="pinCoordsTyped()" /></label>
+                                            </div>
+                                            <div class="pin-form-note">الإحداثيات تتحدث تلقائياً عند سحب العلامة أو النقر على الخريطة.</div>
+                                            <button class="small-btn primary" id="pinSubmitBtn" onclick="submitMapPin()">حفظ الموقع</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="accordion-panel" id="approvedAccordion">
                                         <div class="accordion-header" onclick="toggleAccordion('approvedAccordion')">
-                                            <h3>الأقسام والمواقع المعتمدة <span class="badge" id="approvedCount">0</span></h3>
+                                            <h3>المواقع المعتمدة <span class="badge" id="approvedCount">0</span></h3>
                                             <span class="accordion-arrow">▼</span>
                                         </div>
                                         <div class="accordion-body">
                                             <div class="table-wrap">
                                                 <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>الاسم (عربي)</th><th>الاسم (إنجليزي)</th><th>العنوان (عربي)</th>
-                                                            <th>الهاتف</th><th>خط العرض</th><th>خط الطول</th><th>الإجراءات</th>
-                                                        </tr>
-                                                    </thead>
+                                                    <thead><tr><th>الاسم</th><th>العنوان</th><th>الهاتف</th><th>الإجراءات</th></tr></thead>
                                                     <tbody id="mapPinsBody"></tbody>
                                                 </table>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Pending Approval Accordion (now below approved) -->
-                                    <div class="accordion-panel collapsed" id="pendingAccordion">
+                                    <div class="accordion-panel" id="pendingAccordion">
                                         <div class="accordion-header" onclick="toggleAccordion('pendingAccordion')">
-                                            <h3>الطلبات المعلقة <span class="badge pending" id="pendingCount">0</span></h3>
+                                            <h3>مقترحات الزوار بانتظار الموافقة <span class="badge pending" id="pendingCount">0</span></h3>
                                             <span class="accordion-arrow">▼</span>
                                         </div>
                                         <div class="accordion-body">
                                             <div class="table-wrap">
                                                 <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>الاسم</th><th>العنوان</th><th>الهاتف</th>
-                                                            <th>خط العرض</th><th>خط الطول</th><th>الإجراءات</th>
-                                                        </tr>
-                                                    </thead>
+                                                    <thead><tr><th>الاسم</th><th>العنوان</th><th>الهاتف</th><th>الإجراءات</th></tr></thead>
                                                     <tbody id="pendingPinsBody"></tbody>
                                                 </table>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Admin Pin Form (manual / edit) -->
-                            <div class="editing-banner" id="pinEditingBanner" style="margin-top: 20px;">
-                                <span id="pinEditingLabel">جاري تعديل قسم...</span>
-                                <button onclick="cancelPinEdit()">إلغاء التعديل</button>
-                            </div>
-
-                            <div style="margin-top: 16px;">
-                                <h4 style="color: #D4AF37; font-size: 0.85rem; margin-bottom: 10px;">إضافة / تعديل قسم يدوياً</h4>
-                                <div class="pin-form-grid">
-                                    <input type="text" id="pinNameAr" placeholder="الاسم بالعربية" />
-                                    <input type="text" id="pinNameEn" placeholder="Name in English" />
-                                    <input type="text" id="pinNameKu" placeholder="ناو بە کوردی" />
-                                    <input type="text" id="pinAddressAr" placeholder="العنوان (عربي)" />
-                                    <input type="text" id="pinAddressEn" placeholder="Address (English)" />
-                                    <input type="text" id="pinAddressKu" placeholder="ناونیشان (کوردی)" />
-                                    <input type="text" id="pinPhone" placeholder="رقم الهاتف" />
-                                    <input type="text" id="pinLat" placeholder="خط العرض (Latitude)" />
-                                    <input type="text" id="pinLng" placeholder="خط الطول (Longitude)" />
-                                </div>
-                                <div class="pin-form-note">اختياري: رابط خريطة مخصص لهذا القسم (Embed URL) — إن تُرك فارغاً سيُستخدم الإحداثيات أعلاه</div>
-                                <input type="text" id="pinMapEmbedUrl" placeholder="https://www.google.com/maps?q=...&output=embed (اختياري)" style="width:100%; padding:9px 12px; margin-bottom:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.12); background:#0f0f10; color:#eee; font-family:inherit; font-size:0.85rem;" />
-
-                                <button class="small-btn primary" id="pinSubmitBtn" onclick="submitMapPin()">إضافة قسم جديد</button>
                             </div>
                         </fieldset>
                     </section>
@@ -4321,15 +4322,20 @@ namespace ConsanWebApp
 
                             <div class="archival-form-grid">
                                 <input type="text" id="albumYear" placeholder="السنة (مثال: 2026)" />
-                                <input type="text" id="albumImageUrl" placeholder="رابط الصورة" />
+                                <div class="img-field">
+                                    <div class="img-preview" id="albumImagePreview"><span>لا توجد صورة</span></div>
+                                    <div class="img-field-ctrl">
+                                        <label class="small-btn primary img-pick">
+                                            اختيار صورة من الجهاز
+                                            <input type="file" id="albumImageUploadInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="uploadAlbumImage()" />
+                                        </label>
+                                        <span class="img-status" id="albumUploadResult"></span>
+                                        <input type="text" id="albumImageUrl" placeholder="أو الصق رابط صورة" oninput="showAlbumPreview()" />
+                                    </div>
+                                </div>
                                 <textarea id="albumCaptionAr" placeholder="الوصف بالعربية"></textarea>
                                 <textarea id="albumCaptionEn" placeholder="Caption in English"></textarea>
                                 <textarea id="albumCaptionKu" placeholder="ناونیشان بە کوردی"></textarea>
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <input type="file" id="albumImageUploadInput" accept="image/*" style="color: #ccc; font-size: 0.8rem;" />
-                                <button class="small-btn primary" onclick="uploadAlbumImage()">رفع صورة للأرشيف</button>
-                                <span id="albumUploadResult" style="font-size: 0.78rem; color: #9fd39f; word-break: break-all;"></span>
                             </div>
                             <button class="small-btn primary" id="albumSubmitBtn" onclick="submitAlbumItem()">إضافة عنصر جديد</button>
                         </fieldset>
@@ -4664,35 +4670,9 @@ namespace ConsanWebApp
                 </div>
 
                 <!-- ===== DIRECT PIN DROP MODAL (Fullscreen Map Modal) ===== -->
-                <div class="admin-modal-overlay" id="pinModalOverlay">
-                    <div class="admin-modal-box">
-                        <button class="modal-close" onclick="closePinModal()">×</button>
-                        <h2>إضافة موقع جديد على الخريطة</h2>
-                        <div class="modal-map-wrap">
-                            <div id="modalAdminMap"></div>
-                        </div>
-                        <div class="coords-display" id="modalCoordsDisplay">خط العرض: — | خط الطول: —</div>
-                        <div class="form-group">
-                            <label>اسم القسم / الورشة</label>
-                            <input type="text" id="modalPinName" placeholder="مثال: قسم تصليح البمبات" />
-                        </div>
-                        <div class="form-group">
-                            <label>العنوان</label>
-                            <input type="text" id="modalPinAddress" placeholder="النجف الأشرف - الحي الصناعي..." />
-                        </div>
-                        <div class="form-group">
-                            <label>رقم الهاتف</label>
-                            <input type="text" id="modalPinPhone" placeholder="07xx xxx xxxx" />
-                        </div>
-                        <div class="modal-actions">
-                            <button class="btn-confirm" onclick="confirmDirectPin()">تأكيد وإضافة الموقع</button>
-                            <button class="btn-cancel" onclick="closePinModal()">إلغاء</button>
-                        </div>
-                    </div>
-                </div>
-
                 <link rel="stylesheet" href="/me/leaflet/leaflet.css" />
                 <script src="/me/leaflet/leaflet.js"></script>
+                %%MAPCFG%%
                 <script src="/me/maps.js?v=%%MAPSV%%"></script>
 
                 <script>
@@ -4708,14 +4688,11 @@ namespace ConsanWebApp
                 var adminMap = null;
                 var adminMarkers = {};
                 var adminBaseLayerGroup = null;
-                var adminLayerControl = null;
                 var adminPendingLayerGroup = null;
-                var tempPinMarker = null;
-                var pendingPinCoords = null;
-
-                // Modal map state
-                var modalAdminMap = null;
-                var modalAdminMarker = null;
+                var tempPinMarker = null;      // the new, not-yet-saved pin
+                var editingOrigin = null;      // where the pin being edited was before it was dragged
+                var approvedPins = [];
+                var adminMapFitted = false;
 
                 // =========================================================
                 // ============ AUTHENTICATION & ACCOUNTS MANAGEMENT =======
@@ -4929,7 +4906,7 @@ namespace ConsanWebApp
                     });
                     var activeBtn = document.querySelector('.admin-tabs .tab-btn.active');
                     if (activeBtn && activeBtn.scrollIntoView) activeBtn.scrollIntoView({ block: 'nearest', inline: 'center' });
-                    if (tab === 'industrial' && adminMap) {
+                    if (tab === 'map' && adminMap) {
                         setTimeout(function() { adminMap.invalidateSize(); }, 150);
                     }
                 }
@@ -5042,11 +5019,8 @@ namespace ConsanWebApp
                         ['ar', 'en', 'ku'].forEach(function(l) {
                             buildFields('contentFields-' + l, contentData.translations[l] || {});
                         });
-                        var imgs = contentData.heroImages || [];
-                        for (var i = 0; i < 4; i++) {
-                            var el = document.getElementById('heroImage' + i);
-                            if (el) el.value = imgs[i] || '';
-                        }
+                        heroList = (contentData.heroImages || []).filter(function(u) { return u && u.trim(); });
+                        renderHero();
                     });
                 }
 
@@ -5061,16 +5035,14 @@ namespace ConsanWebApp
 
                 function saveContent() {
                     var translations = { ar: collectFields('contentFields-ar'), en: collectFields('contentFields-en'), ku: collectFields('contentFields-ku') };
-                    var heroImages = [];
-                    for (var i = 0; i < 4; i++) {
-                        var el = document.getElementById('heroImage' + i);
-                        heroImages.push(el ? el.value : '');
-                    }
+                    var heroImages = heroList.slice();
                     fetch('/api/admin/content', {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ translations: translations, heroImages: heroImages })
                     }).then(function(r) { return r.json(); }).then(function(res) {
-                        alert(res.success ? 'تم حفظ محتوى الصفحة الرئيسية بنجاح' : 'حدث خطأ أثناء الحفظ');
+                        alert(res.success ? 'تم حفظ محتوى الصفحة الرئيسية بنجاح'
+                            : res.message === 'unauthorized' ? 'حفظ نصوص الصفحة متاح لحساب Admin فقط. صور الواجهة تُحفظ تلقائياً عند تغييرها.'
+                            : 'حدث خطأ أثناء الحفظ');
                     }).catch(function() { alert('حدث خطأ أثناء الحفظ'); });
                 }
 
@@ -5081,7 +5053,6 @@ namespace ConsanWebApp
                         ['ar', 'en', 'ku'].forEach(function(l) {
                             buildFields('indFields-' + l, industrialData.translations[l] || {});
                         });
-                        document.getElementById('mapEmbedUrlInput').value = industrialData.mapEmbedUrl || '';
                     });
                 }
 
@@ -5096,7 +5067,7 @@ namespace ConsanWebApp
 
                 function saveIndustrialContent() {
                     var translations = { ar: collectFields('indFields-ar'), en: collectFields('indFields-en'), ku: collectFields('indFields-ku') };
-                    var mapEmbedUrl = document.getElementById('mapEmbedUrlInput').value;
+                    var mapEmbedUrl = industrialData.mapEmbedUrl || '';   // no longer edited: every map uses the workshop pin
                     fetch('/api/admin/industrial-content', {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ translations: translations, mapEmbedUrl: mapEmbedUrl })
@@ -5105,241 +5076,277 @@ namespace ConsanWebApp
                     }).catch(function() { alert('حدث خطأ أثناء الحفظ'); });
                 }
 
-                // ---- ADMIN MAP ----
-                function createGoogleLayer(layerType, label) {
-                    return MEMaps.layer(layerType, label);
-                }
-
-                var adminGoogleRoadmap = createGoogleLayer('m', 'خريطة الشوارع');
-                var adminGoogleSatellite = createGoogleLayer('s', 'الصور الفضائية');
-                var adminGoogleHybrid = createGoogleLayer('y', 'الخريطة الهجينة');
-                var adminGoogleTerrain = createGoogleLayer('p', 'التضاريس');
-
+                // ---- ADMIN MAP: one place to add, move and edit every location ----
+                // Click the map to drop a new pin, or press "تعديل" on a row and drag the pin
+                // (or click where it should go). Coordinates fill in by themselves.
                 function initAdminMap() {
                     if (adminMap) {
                         setTimeout(function() { adminMap.invalidateSize(); }, 300);
                         return;
                     }
+                    var street = MEMaps.street(), imagery = MEMaps.imagery();
                     adminMap = L.map('adminMap', {
+                        meFree: true,               // staff can place pins outside the district
                         center: MEMaps.center,
                         zoom: 16,
-                        layers: [adminGoogleRoadmap]
+                        minZoom: 6,
+                        layers: [street]
                     });
-
-                    var baseMaps = {
-                        'خريطة الشوارع': adminGoogleRoadmap,
-                        'الصور الفضائية': adminGoogleSatellite,
-                        'الخريطة الهجينة': adminGoogleHybrid,
-                        'التضاريس': adminGoogleTerrain
-                    };
-                    adminLayerControl = L.control.layers(baseMaps, null, {
-                        position: 'topright',
-                        collapsed: true
-                    }).addTo(adminMap);
-
+                    L.control.layers({ 'خريطة الشوارع': street, 'الصور الفضائية': imagery }, null, { position: 'topright', collapsed: true }).addTo(adminMap);
                     adminBaseLayerGroup = L.layerGroup().addTo(adminMap);
                     adminPendingLayerGroup = L.layerGroup().addTo(adminMap);
 
-                    // Click on map → open fullscreen pin modal
                     adminMap.on('click', function(e) {
-                        openPinModal(e.latlng.lat, e.latlng.lng);
+                        if (editingPinId || tempPinMarker) { movePinTo(e.latlng); return; }
+                        startNewPin(e.latlng);
                     });
-
                     setTimeout(function() { adminMap.invalidateSize(); }, 300);
                 }
 
-                // ---- Fullscreen Map Modal for Direct Pin Drop ----
-                window.openPinModal = function(lat, lng) {
-                    pendingPinCoords = { lat: lat, lng: lng };
-                    document.getElementById('modalCoordsDisplay').textContent =
-                        'خط العرض: ' + lat.toFixed(6) + ' | خط الطول: ' + lng.toFixed(6);
-                    document.getElementById('modalPinName').value = '';
-                    document.getElementById('modalPinAddress').value = '';
-                    document.getElementById('modalPinPhone').value = '';
-                    document.getElementById('pinModalOverlay').classList.add('active');
-                    document.body.style.overflow = 'hidden';
+                function setPinCoords(latlng) {
+                    document.getElementById('pinLat').value = latlng.lat.toFixed(6);
+                    document.getElementById('pinLng').value = latlng.lng.toFixed(6);
+                }
 
-                    // Initialize or update modal map
-                    setTimeout(function() {
-                        if (!modalAdminMap) {
-                            modalAdminMap = L.map('modalAdminMap', {
-                                center: [lat, lng],
-                                zoom: 15,
-                                layers: [adminGoogleRoadmap]
-                            });
+                function editingMarker() {
+                    return editingPinId ? adminMarkers[editingPinId] : tempPinMarker;
+                }
 
-                            var modalBaseMaps = {
-                                'خريطة الشوارع': adminGoogleRoadmap,
-                                'الصور الفضائية': adminGoogleSatellite,
-                                'الخريطة الهجينة': adminGoogleHybrid,
-                                'التضاريس': adminGoogleTerrain
-                            };
-                            L.control.layers(modalBaseMaps, null, {
-                                position: 'topright',
-                                collapsed: true
-                            }).addTo(modalAdminMap);
+                function movePinTo(latlng) {
+                    var m = editingMarker();
+                    if (m) m.setLatLng(latlng);
+                    setPinCoords(latlng);
+                }
 
-                            modalAdminMap.on('click', function(e) {
-                                if (modalAdminMarker) {
-                                    modalAdminMarker.setLatLng(e.latlng);
-                                } else {
-                                    modalAdminMarker = L.marker(e.latlng, { draggable: true }).addTo(modalAdminMap);
-                                    modalAdminMarker.on('dragend', function() {
-                                        var pos = modalAdminMarker.getLatLng();
-                                        pendingPinCoords = { lat: pos.lat, lng: pos.lng };
-                                        document.getElementById('modalCoordsDisplay').textContent =
-                                            'خط العرض: ' + pos.lat.toFixed(6) + ' | خط الطول: ' + pos.lng.toFixed(6);
-                                    });
-                                }
-                                pendingPinCoords = { lat: e.latlng.lat, lng: e.latlng.lng };
-                                document.getElementById('modalCoordsDisplay').textContent =
-                                    'خط العرض: ' + e.latlng.lat.toFixed(6) + ' | خط الطول: ' + e.latlng.lng.toFixed(6);
-                                modalAdminMap.setView(e.latlng, 16);
-                            });
-                        } else {
-                            modalAdminMap.setView([lat, lng], 15);
-                        }
+                // Typing coordinates moves the pin too.
+                function pinCoordsTyped() {
+                    var lat = parseFloat(document.getElementById('pinLat').value);
+                    var lng = parseFloat(document.getElementById('pinLng').value);
+                    var m = editingMarker();
+                    if (!m || isNaN(lat) || isNaN(lng)) return;
+                    m.setLatLng([lat, lng]);
+                    adminMap.panTo([lat, lng]);
+                }
 
-                        // Add or move marker
-                        if (modalAdminMarker) {
-                            modalAdminMarker.setLatLng([lat, lng]);
-                        } else {
-                            modalAdminMarker = L.marker([lat, lng], { draggable: true }).addTo(modalAdminMap);
-                            modalAdminMarker.on('dragend', function() {
-                                var pos = modalAdminMarker.getLatLng();
-                                pendingPinCoords = { lat: pos.lat, lng: pos.lng };
-                                document.getElementById('modalCoordsDisplay').textContent =
-                                    'خط العرض: ' + pos.lat.toFixed(6) + ' | خط الطول: ' + pos.lng.toFixed(6);
-                            });
-                        }
+                function makeDraggable(marker) {
+                    if (!marker || !marker.dragging) return;
+                    marker.dragging.enable();
+                    marker.off('dragend').on('dragend', function() { setPinCoords(marker.getLatLng()); });
+                    var el = marker.getElement && marker.getElement();
+                    if (el) el.classList.add('admin-pin-editing');
+                }
 
-                        // CRITICAL: invalidateSize after modal opens
-                        setTimeout(function() {
-                            modalAdminMap.invalidateSize();
-                            window.dispatchEvent(new Event('resize'));
-                        }, 200);
-                    }, 100);
-                };
+                function clearPinFields() {
+                    ['pinNameAr','pinNameEn','pinNameKu','pinAddressAr','pinAddressEn','pinAddressKu','pinPhone','pinLat','pinLng'].forEach(function(id) {
+                        document.getElementById(id).value = '';
+                    });
+                }
 
-                window.closePinModal = function() {
-                    document.getElementById('pinModalOverlay').classList.remove('active');
-                    document.body.style.overflow = '';
-                    if (modalAdminMarker) {
-                        modalAdminMap.removeLayer(modalAdminMarker);
-                        modalAdminMarker = null;
+                function openPinEditor(title) {
+                    document.getElementById('pinEditorTitle').textContent = title;
+                    document.getElementById('pinEditorEmpty').hidden = true;
+                    document.getElementById('pinEditorBody').hidden = false;
+                    document.getElementById('pinCancelBtn').hidden = false;
+                    document.getElementById('pinEditor').classList.add('editing');
+                    document.getElementById('adminMapInstruction').textContent = 'اسحب العلامة أو انقر على الخريطة لتغيير المكان';
+                }
+
+                function startNewPin(latlng) {
+                    cancelPinEdit();
+                    clearPinFields();
+                    tempPinMarker = L.marker(latlng, {
+                        draggable: true, zIndexOffset: 2000,
+                        icon: L.divIcon({ className: '', html: '<span class="admin-temp-pin"></span>', iconSize: [22, 22], iconAnchor: [11, 11] })
+                    }).addTo(adminMap);
+                    tempPinMarker.on('dragend', function() { setPinCoords(tempPinMarker.getLatLng()); });
+                    setPinCoords(latlng);
+                    document.getElementById('pinAddressAr').value = 'النجف الأشرف - الحي الصناعي';
+                    document.getElementById('pinAddressEn').value = 'Najaf Al-Ashraf - Industrial District';
+                    document.getElementById('pinAddressKu').value = 'نەجەف ئەشرەف - گەڕەکی پیشەسازی';
+                    openPinEditor('إضافة موقع جديد');
+                    document.getElementById('pinSubmitBtn').textContent = 'إضافة الموقع';
+                    document.getElementById('pinNameAr').focus();
+                }
+
+                function startEditPin(id) {
+                    var pin = approvedPins.filter(function(p) { return String(p.id) === String(id); })[0];
+                    if (!pin) return;
+                    cancelPinEdit();
+                    editingPinId = pin.id;
+                    editingOrigin = L.latLng(pin.latitude, pin.longitude);
+                    document.getElementById('pinNameAr').value = pin.nameAr || '';
+                    document.getElementById('pinNameEn').value = pin.nameEn || '';
+                    document.getElementById('pinNameKu').value = pin.nameKu || '';
+                    document.getElementById('pinAddressAr').value = pin.addressAr || '';
+                    document.getElementById('pinAddressEn').value = pin.addressEn || '';
+                    document.getElementById('pinAddressKu').value = pin.addressKu || '';
+                    document.getElementById('pinPhone').value = pin.phone || '';
+                    setPinCoords({ lat: pin.latitude, lng: pin.longitude });
+                    openPinEditor(pin.isWorkshop ? 'تعديل موقع الورشة (يظهر في كل خرائط الموقع)' : 'تعديل: ' + (pin.nameAr || pin.nameEn || ''));
+                    document.getElementById('pinSubmitBtn').textContent = 'حفظ التعديلات';
+                    makeDraggable(adminMarkers[pin.id]);
+                    if (adminMap) adminMap.flyTo([pin.latitude, pin.longitude], 17, { duration: 0.8 });
+                    document.getElementById('pinEditor').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+
+                function cancelPinEdit() {
+                    var wasEditing = editingPinId;
+                    editingPinId = null;
+                    if (tempPinMarker) { adminMap.removeLayer(tempPinMarker); tempPinMarker = null; }
+                    clearPinFields();
+                    document.getElementById('pinEditorEmpty').hidden = false;
+                    document.getElementById('pinEditorBody').hidden = true;
+                    document.getElementById('pinCancelBtn').hidden = true;
+                    document.getElementById('pinEditorTitle').textContent = 'إضافة موقع جديد';
+                    document.getElementById('pinEditor').classList.remove('editing');
+                    document.getElementById('adminMapInstruction').textContent = 'انقر على الخريطة لوضع موقع جديد';
+                    // put a dragged-but-unsaved pin back where it was
+                    var mk = wasEditing && adminMarkers[wasEditing];
+                    if (mk) {
+                        if (editingOrigin) mk.setLatLng(editingOrigin);
+                        if (mk.dragging) mk.dragging.disable();
+                        var el = mk.getElement && mk.getElement();
+                        if (el) el.classList.remove('admin-pin-editing');
                     }
-                    pendingPinCoords = null;
-                };
+                    editingOrigin = null;
+                }
 
-                window.confirmDirectPin = function() {
-                    var name = document.getElementById('modalPinName').value.trim();
-                    var address = document.getElementById('modalPinAddress').value.trim();
-                    var phone = document.getElementById('modalPinPhone').value.trim();
-                    if (!name) { alert('الرجاء إدخال اسم القسم'); return; }
-                    if (!pendingPinCoords) { alert('الرجاء النقر على الخريطة أولاً'); return; }
-
+                function submitMapPin() {
+                    var lat = parseFloat(document.getElementById('pinLat').value);
+                    var lng = parseFloat(document.getElementById('pinLng').value);
+                    if (isNaN(lat) || isNaN(lng)) { alert('ضع العلامة على الخريطة أولاً'); return; }
+                    var nameAr = document.getElementById('pinNameAr').value.trim();
+                    var nameEn = document.getElementById('pinNameEn').value.trim();
+                    if (!nameAr && !nameEn) { alert('الرجاء إدخال اسم الموقع'); document.getElementById('pinNameAr').focus(); return; }
                     var payload = {
-                        nameAr: name,
-                        nameEn: name,
-                        nameKu: name,
-                        addressAr: address || 'النجف الأشرف - الحي الصناعي',
-                        addressEn: address || 'Najaf Al-Ashraf - Industrial District',
-                        addressKu: address || 'نەجەف ئەشرەف - گەڕەکی پیشەسازی',
-                        phone: phone,
-                        latitude: pendingPinCoords.lat,
-                        longitude: pendingPinCoords.lng,
-                        mapEmbedUrl: ''
+                        nameAr: nameAr,
+                        nameEn: nameEn,
+                        nameKu: document.getElementById('pinNameKu').value.trim(),
+                        addressAr: document.getElementById('pinAddressAr').value.trim(),
+                        addressEn: document.getElementById('pinAddressEn').value.trim(),
+                        addressKu: document.getElementById('pinAddressKu').value.trim(),
+                        phone: document.getElementById('pinPhone').value.trim(),
+                        latitude: lat,
+                        longitude: lng
                     };
-
-                    fetch('/api/admin/map-pins', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                    var url = editingPinId ? '/api/admin/map-pins/' + editingPinId : '/api/admin/map-pins';
+                    fetch(url, {
+                        method: editingPinId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
-                    }).then(function(r) { return r.json(); }).then(function(res) {
-                        if (res.success) {
-                            closePinModal();
+                    }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); }).then(function(res) {
+                        if (res.ok && res.data.success) {
+                            editingPinId = null;
+                            cancelPinEdit();
                             loadMapPins();
-                            loadPendingPins();
                         } else {
-                            alert('حدث خطأ أثناء إضافة الموقع');
+                            alert((res.data && res.data.message) || 'حدث خطأ أثناء حفظ الموقع');
                         }
-                    }).catch(function() { alert('حدث خطأ أثناء إضافة الموقع'); });
-                };
+                    }).catch(function() { alert('حدث خطأ أثناء حفظ الموقع'); });
+                }
 
-                // ---- Map pins / departments (admin) ----
+                function deleteMapPin(id) {
+                    if (!confirm('هل أنت متأكد من حذف هذا الموقع؟')) return;
+                    fetch('/api/admin/map-pins/' + id, { method: 'DELETE' }).then(function() {
+                        if (String(editingPinId) === String(id)) { editingPinId = null; cancelPinEdit(); }
+                        loadMapPins();
+                    });
+                }
+
+                // Reads a pasted Google Maps link (…/@32.01,44.37,17z  ·  ?q=32.01,44.37  ·  !3d32.01!4d44.37) or "lat, lng".
+                function parseLatLng(text) {
+                    text = (text || '').trim();
+                    var m = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/)
+                         || text.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/)
+                         || text.match(/[?&](?:q|query|ll|destination|center)=(-?\d+(?:\.\d+)?)(?:,|%2C)\s*(-?\d+(?:\.\d+)?)/i)
+                         || text.match(/^(-?\d+(?:\.\d+)?)\s*[,،\s]\s*(-?\d+(?:\.\d+)?)$/);
+                    if (!m) return null;
+                    var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+                    if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+                    return L.latLng(lat, lng);
+                }
+
+                function findPinLocation() {
+                    var text = document.getElementById('pinFindInput').value;
+                    var ll = parseLatLng(text);
+                    if (!ll) {
+                        alert(/goo\.gl|maps\.app/.test(text)
+                            ? 'الروابط المختصرة لا تحتوي على الإحداثيات. افتح الرابط في المتصفح ثم انسخ الرابط الكامل من شريط العنوان، أو انسخ الإحداثيات من Google Maps (انقر بالزر الأيمن على المكان).'
+                            : 'لم أتعرف على الإحداثيات. الصق رابط Google Maps الكامل أو اكتب مثل: 32.0118, 44.3775');
+                        return;
+                    }
+                    adminMap.setView(ll, 17);
+                    if (editingPinId || tempPinMarker) movePinTo(ll); else startNewPin(ll);
+                }
+
+                function fitAllPins() {
+                    if (!adminMap || !approvedPins.length) return;
+                    if (approvedPins.length === 1) { adminMap.setView([approvedPins[0].latitude, approvedPins[0].longitude], 17); return; }
+                    adminMap.fitBounds(L.latLngBounds(approvedPins.map(function(p) { return [p.latitude, p.longitude]; })), { padding: [40, 40], maxZoom: 18 });
+                }
+
+                // ---- Map pins: lists + markers ----
                 function loadMapPins() {
                     fetch('/api/admin/map-pins/approved').then(function(r) { return r.ok ? r.json() : []; }).then(function(pins) {
+                        approvedPins = pins || [];
                         var body = document.getElementById('mapPinsBody');
                         body.innerHTML = '';
-                        document.getElementById('approvedCount').textContent = (pins || []).length;
-                        (pins || []).forEach(function(pin) {
+                        document.getElementById('approvedCount').textContent = approvedPins.length;
+                        if (adminBaseLayerGroup) adminBaseLayerGroup.clearLayers();
+                        adminMarkers = {};
+                        approvedPins.forEach(function(pin) {
                             var tr = document.createElement('tr');
                             if (pin.isWorkshop) tr.className = 'ws-admin-row';
                             tr.innerHTML =
-                                '<td>' + (pin.isWorkshop ? '<span class="ws-admin-tag">الورشة — الموقع الرئيسي</span><br>' : '') + escapeHtml(pin.nameAr || '-') + '</td>' +
-                                '<td>' + escapeHtml(pin.nameEn || '-') + '</td>' +
+                                '<td>' + (pin.isWorkshop ? '<span class="ws-admin-tag">الورشة — الموقع الرئيسي</span><br>' : '') + escapeHtml(pin.nameAr || pin.nameEn || '-') + '</td>' +
                                 '<td>' + escapeHtml(pin.addressAr || '-') + '</td>' +
-                                '<td>' + escapeHtml(pin.phone || '-') + '</td>' +
-                                '<td>' + escapeHtml(String(pin.latitude)) + '</td>' +
-                                '<td>' + escapeHtml(String(pin.longitude)) + '</td>' +
+                                '<td dir="ltr">' + escapeHtml(pin.phone || '-') + '</td>' +
                                 '<td>' +
-                                    '<button class="small-btn primary" onclick=\'startEditPin(' + JSON.stringify(pin) + ')\'>تعديل</button>' +
+                                    '<button class="small-btn primary" onclick="startEditPin(\'' + pin.id + '\')">تعديل</button>' +
                                     (pin.isWorkshop ? '' : '<button class="small-btn danger" onclick="deleteMapPin(\'' + pin.id + '\')">حذف</button>') +
                                 '</td>';
+                            tr.addEventListener('dblclick', function() { startEditPin(pin.id); });
                             body.appendChild(tr);
 
-                            // Add marker to admin map
                             if (adminBaseLayerGroup) {
-                                if (adminMarkers[pin.id]) { adminMarkers[pin.id].remove(); }
-                                var popupContent = '<strong>' + escapeHtml(pin.nameAr || pin.nameEn) + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-');
                                 var marker = pin.isWorkshop
                                     ? MEMaps.addWorkshop(adminBaseLayerGroup, pin.latitude, pin.longitude, pin.nameAr || pin.nameEn)
-                                    : L.marker([pin.latitude, pin.longitude]).addTo(adminBaseLayerGroup).bindPopup(popupContent);
+                                    : L.marker([pin.latitude, pin.longitude], { draggable: true }).addTo(adminBaseLayerGroup)
+                                        .bindPopup('<strong>' + escapeHtml(pin.nameAr || pin.nameEn) + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-'));
+                                if (marker.dragging) marker.dragging.disable();
+                                marker.on('click', function() { if (String(editingPinId) !== String(pin.id)) startEditPin(pin.id); });
                                 adminMarkers[pin.id] = marker;
                             }
                         });
-
-                        // Fit bounds
-                        if ((pins || []).length > 1 && adminMap) {
-                            var bounds = L.latLngBounds(pins.map(function(p) { return [p.latitude, p.longitude]; }));
-                            adminMap.fitBounds(bounds, { padding: [50, 50] });
-                        }
+                        if (!adminMapFitted && adminMap && approvedPins.length) { adminMapFitted = true; fitAllPins(); }
                     }).catch(function() { });
+                    loadPendingPins();
                 }
 
                 function loadPendingPins() {
                     fetch('/api/admin/map-pins/pending').then(function(r) { return r.ok ? r.json() : []; }).then(function(pins) {
                         var body = document.getElementById('pendingPinsBody');
                         body.innerHTML = '';
+                        if (adminPendingLayerGroup) adminPendingLayerGroup.clearLayers();
                         document.getElementById('pendingCount').textContent = (pins || []).length;
                         showPendingNotice((pins || []).length);
                         if (!pins || !pins.length) {
-                            body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;padding:20px;">لا توجد طلبات معلقة حالياً</td></tr>';
+                            body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;padding:20px;">لا توجد مقترحات حالياً</td></tr>';
                             return;
                         }
-                        (pins || []).forEach(function(pin) {
+                        pins.forEach(function(pin) {
                             var tr = document.createElement('tr');
                             tr.innerHTML =
                                 '<td>' + escapeHtml(pin.nameAr || pin.nameEn || '-') + '</td>' +
                                 '<td>' + escapeHtml(pin.addressAr || '-') + '</td>' +
-                                '<td>' + escapeHtml(pin.phone || '-') + '</td>' +
-                                '<td>' + escapeHtml(String(pin.latitude)) + '</td>' +
-                                '<td>' + escapeHtml(String(pin.longitude)) + '</td>' +
+                                '<td dir="ltr">' + escapeHtml(pin.phone || '-') + '</td>' +
                                 '<td>' +
+                                    '<button class="small-btn" onclick="adminMap.flyTo([' + Number(pin.latitude) + ',' + Number(pin.longitude) + '], 17)">عرض</button>' +
                                     '<button class="small-btn success" onclick="approvePin(\'' + pin.id + '\')">موافقة</button>' +
                                     '<button class="small-btn danger" onclick="rejectPin(\'' + pin.id + '\')">رفض</button>' +
                                 '</td>';
                             body.appendChild(tr);
-
-                            // Add pending marker to admin map
                             if (adminPendingLayerGroup) {
-                                var pendingIcon = L.divIcon({
-                                    className: 'custom-pending-marker',
-                                    html: '<div style="background:#ffb86b;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.5);animation:pulse 1.5s infinite;"></div>',
-                                    iconSize: [14, 14],
-                                    iconAnchor: [7, 7]
-                                });
-                                var marker = L.marker([pin.latitude, pin.longitude], { icon: pendingIcon })
+                                L.marker([pin.latitude, pin.longitude], { icon: L.divIcon({ className: '', html: '<div class="pending-pin-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) })
                                     .addTo(adminPendingLayerGroup)
                                     .bindPopup('<strong>' + escapeHtml(pin.nameAr || pin.nameEn || '') + '</strong><br>' + escapeHtml(pin.addressAr || '') + '<br>' + escapeHtml(pin.phone || '-') + '<br><em style="color:#ffb86b;">بانتظار الموافقة</em>');
                             }
@@ -5349,7 +5356,7 @@ namespace ConsanWebApp
 
                 // Visitor-suggested locations waiting for a Manager/Admin decision
                 function showPendingNotice(n) {
-                    var btn = document.querySelector('.admin-tabs .tab-btn[data-tab="industrial"]');
+                    var btn = document.querySelector('.admin-tabs .tab-btn[data-tab="map"]');
                     if (btn) {
                         var b = btn.querySelector('.tab-count');
                         if (!b) { b = document.createElement('span'); b.className = 'tab-count'; btn.appendChild(b); }
@@ -5363,116 +5370,21 @@ namespace ConsanWebApp
                 }
 
                 function approvePin(id) {
-                    if (!confirm('هل أنت متأكد من الموافقة على هذا الموقع؟ سيظهر في الجدول والخريطة العامة.')) return;
+                    if (!confirm('الموافقة على هذا الموقع؟ سيظهر على الخريطة العامة.')) return;
                     fetch('/api/admin/map-pins/' + id + '/approve', { method: 'PUT' })
                     .then(function(r) { return r.json(); })
                     .then(function(res) {
-                        if (res.success) {
-                            loadMapPins();
-                            loadPendingPins();
-                        } else {
-                            alert('حدث خطأ أثناء الموافقة');
-                        }
+                        if (res.success) loadMapPins(); else alert('حدث خطأ أثناء الموافقة');
                     }).catch(function() { alert('حدث خطأ أثناء الموافقة'); });
                 }
 
                 function rejectPin(id) {
-                    if (!confirm('هل أنت متأكد من رفض وحذف هذا الطلب؟')) return;
+                    if (!confirm('رفض وحذف هذا المقترح؟')) return;
                     fetch('/api/admin/map-pins/' + id, { method: 'DELETE' })
                     .then(function(r) { return r.json(); })
                     .then(function(res) {
-                        if (res.success) {
-                            loadPendingPins();
-                        } else {
-                            alert('حدث خطأ أثناء الرفض');
-                        }
+                        if (res.success) loadPendingPins(); else alert('حدث خطأ أثناء الرفض');
                     }).catch(function() { alert('حدث خطأ أثناء الرفض'); });
-                }
-
-                function startEditPin(pin) {
-                    editingPinId = pin.id;
-                    document.getElementById('pinNameAr').value = pin.nameAr || '';
-                    document.getElementById('pinNameEn').value = pin.nameEn || '';
-                    document.getElementById('pinNameKu').value = pin.nameKu || '';
-                    document.getElementById('pinAddressAr').value = pin.addressAr || '';
-                    document.getElementById('pinAddressEn').value = pin.addressEn || '';
-                    document.getElementById('pinAddressKu').value = pin.addressKu || '';
-                    document.getElementById('pinPhone').value = pin.phone || '';
-                    document.getElementById('pinLat').value = pin.latitude;
-                    document.getElementById('pinLng').value = pin.longitude;
-                    document.getElementById('pinMapEmbedUrl').value = pin.mapEmbedUrl || '';
-                    document.getElementById('pinSubmitBtn').textContent = 'حفظ التعديلات';
-                    var banner = document.getElementById('pinEditingBanner');
-                    banner.classList.add('active');
-                    document.getElementById('pinEditingLabel').textContent = 'جاري تعديل: ' + (pin.nameAr || pin.nameEn || '');
-                    window.scrollTo({ top: document.getElementById('pinEditingBanner').offsetTop - 100, behavior: 'smooth' });
-
-                    // Pan map to pin
-                    if (adminMap && pin.latitude && pin.longitude) {
-                        adminMap.flyTo([pin.latitude, pin.longitude], 16, { duration: 1 });
-                    }
-                }
-
-                function cancelPinEdit() {
-                    editingPinId = null;
-                    ['pinNameAr','pinNameEn','pinNameKu','pinAddressAr','pinAddressEn','pinAddressKu','pinPhone','pinLat','pinLng','pinMapEmbedUrl'].forEach(function(id) {
-                        document.getElementById(id).value = '';
-                    });
-                    document.getElementById('pinSubmitBtn').textContent = 'إضافة قسم جديد';
-                    document.getElementById('pinEditingBanner').classList.remove('active');
-                    if (tempPinMarker) {
-                        adminMap.removeLayer(tempPinMarker);
-                        tempPinMarker = null;
-                    }
-                }
-
-                function submitMapPin() {
-                    var lat = parseFloat(document.getElementById('pinLat').value);
-                    var lng = parseFloat(document.getElementById('pinLng').value);
-                    if (isNaN(lat) || isNaN(lng)) { alert('الرجاء إدخال خط عرض وخط طول صحيحين'); return; }
-                    var payload = {
-                        nameAr: document.getElementById('pinNameAr').value,
-                        nameEn: document.getElementById('pinNameEn').value,
-                        nameKu: document.getElementById('pinNameKu').value,
-                        addressAr: document.getElementById('pinAddressAr').value,
-                        addressEn: document.getElementById('pinAddressEn').value,
-                        addressKu: document.getElementById('pinAddressKu').value,
-                        phone: document.getElementById('pinPhone').value,
-                        latitude: lat,
-                        longitude: lng,
-                        mapEmbedUrl: document.getElementById('pinMapEmbedUrl').value
-                    };
-
-                    var url = '/api/admin/map-pins';
-                    var method = 'POST';
-                    if (editingPinId) {
-                        url = '/api/admin/map-pins/' + editingPinId;
-                        method = 'PUT';
-                    }
-
-                    fetch(url, {
-                        method: method, headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    }).then(function(r) { return r.json(); }).then(function(res) {
-                        if (res.success) {
-                            if (tempPinMarker) {
-                                adminMap.removeLayer(tempPinMarker);
-                                tempPinMarker = null;
-                            }
-                            cancelPinEdit();
-                            loadMapPins();
-                        } else {
-                            alert('حدث خطأ أثناء حفظ القسم');
-                        }
-                    }).catch(function() { alert('حدث خطأ أثناء حفظ القسم'); });
-                }
-
-                function deleteMapPin(id) {
-                    if (!confirm('هل أنت متأكد من حذف هذا القسم؟')) return;
-                    fetch('/api/admin/map-pins/' + id, { method: 'DELETE' }).then(function() {
-                        if (editingPinId === id) cancelPinEdit();
-                        loadMapPins();
-                    });
                 }
 
                 // ---- Archival album ----
@@ -5505,6 +5417,7 @@ namespace ConsanWebApp
                     editingAlbumId = item.id;
                     document.getElementById('albumYear').value = item.year || '';
                     document.getElementById('albumImageUrl').value = item.imageUrl || '';
+                    showAlbumPreview();
                     document.getElementById('albumCaptionAr').value = item.captionAr || '';
                     document.getElementById('albumCaptionEn').value = item.captionEn || '';
                     document.getElementById('albumCaptionKu').value = item.captionKu || '';
@@ -5522,12 +5435,14 @@ namespace ConsanWebApp
                     });
                     document.getElementById('albumSubmitBtn').textContent = 'إضافة عنصر جديد';
                     document.getElementById('albumEditingBanner').classList.remove('active');
+                    document.getElementById('albumUploadResult').textContent = '';
+                    showAlbumPreview();
                 }
 
                 function submitAlbumItem() {
                     var year = document.getElementById('albumYear').value.trim();
                     var imageUrl = document.getElementById('albumImageUrl').value.trim();
-                    if (!year || !imageUrl) { alert('الرجاء إدخال السنة ورابط الصورة على الأقل'); return; }
+                    if (!year || !imageUrl) { alert('الرجاء إدخال السنة واختيار صورة على الأقل'); return; }
                     var payload = {
                         year: year,
                         imageUrl: imageUrl,
@@ -5562,22 +5477,27 @@ namespace ConsanWebApp
                     });
                 }
 
+                // Picking a file uploads it straight away and shows it in the preview.
                 function uploadAlbumImage() {
                     var input = document.getElementById('albumImageUploadInput');
-                    if (!input.files || !input.files[0]) { alert('اختر صورة أولاً'); return; }
-                    var formData = new FormData();
-                    formData.append('file', input.files[0]);
-                    document.getElementById('albumUploadResult').textContent = 'جاري الرفع...';
-                    fetch('/api/admin/upload-image', { method: 'POST', body: formData })
-                    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
-                    .then(function(res) {
-                        if (res.ok) {
-                            document.getElementById('albumUploadResult').textContent = 'تم الرفع: ' + res.data.url;
-                            document.getElementById('albumImageUrl').value = res.data.url;
-                        } else {
-                            document.getElementById('albumUploadResult').textContent = res.data.message || 'فشل الرفع';
-                        }
-                    }).catch(function() { document.getElementById('albumUploadResult').textContent = 'فشل الرفع'; });
+                    if (!input.files || !input.files[0]) return;
+                    var status = document.getElementById('albumUploadResult');
+                    status.className = 'img-status';
+                    status.textContent = 'جاري الرفع...';
+                    uploadSiteImage(input.files[0]).then(function(url) {
+                        document.getElementById('albumImageUrl').value = url;
+                        showAlbumPreview();
+                        status.textContent = editingAlbumId ? 'تم الرفع — اضغط «حفظ التعديلات»' : 'تم الرفع — أكمل السنة والوصف ثم اضغط «إضافة عنصر جديد»';
+                    }).catch(function(msg) {
+                        status.className = 'img-status err';
+                        status.textContent = msg;
+                    }).then(function() { input.value = ''; });
+                }
+
+                function showAlbumPreview() {
+                    var url = document.getElementById('albumImageUrl').value.trim();
+                    var box = document.getElementById('albumImagePreview');
+                    box.innerHTML = url ? '<img src="' + escapeHtml(url) + '" alt="" onerror="this.parentNode.innerHTML=\'<span>تعذر عرض الصورة</span>\'" />' : '<span>لا توجد صورة</span>';
                 }
 
                 // ---- Explorer cards (admin) ----
@@ -5892,22 +5812,109 @@ namespace ConsanWebApp
                     }).then(function(r) { return r.json(); }).then(function() { loadGuideContentAdmin(); });
                 }
 
-                // ---- Image upload (hero) ----
-                function uploadImage() {
-                    var input = document.getElementById('imageUploadInput');
-                    if (!input.files || !input.files[0]) { alert('اختر صورة أولاً'); return; }
-                    var formData = new FormData();
-                    formData.append('file', input.files[0]);
-                    document.getElementById('uploadResult').textContent = 'جاري الرفع...';
-                    fetch('/api/admin/upload-image', { method: 'POST', body: formData })
-                    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
-                    .then(function(res) {
-                        if (res.ok) {
-                            document.getElementById('uploadResult').textContent = 'تم الرفع: ' + res.data.url + ' (انسخ الرابط وألصقه في حقل الصورة المطلوب)';
-                        } else {
-                            document.getElementById('uploadResult').textContent = res.data.message || 'فشل الرفع';
-                        }
-                    }).catch(function() { document.getElementById('uploadResult').textContent = 'فشل الرفع'; });
+                // ---- Shared: upload one image from this computer, resolves with its URL ----
+                function uploadSiteImage(file) {
+                    return new Promise(function(resolve, reject) {
+                        if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) { reject('نوع الملف غير مدعوم. الصور المسموحة: JPG, PNG, WEBP, GIF'); return; }
+                        if (file.size > 12 * 1024 * 1024) { reject('الصورة أكبر من 12 MB'); return; }
+                        var fd = new FormData();
+                        fd.append('file', file);
+                        fetch('/api/admin/upload-image', { method: 'POST', body: fd })
+                        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }, function() { return { ok: false, data: {} }; }); })
+                        .then(function(res) {
+                            if (res.ok && res.data.url) resolve(res.data.url);
+                            else reject(res.data.message === 'unauthorized' ? 'انتهت الجلسة — سجّل الدخول من جديد' : (res.data.message || 'فشل الرفع'));
+                        }).catch(function() { reject('فشل الرفع — تحقق من الاتصال'); });
+                    });
+                }
+
+                // ---- Hero slider photos: pick from the computer, reorder, replace, remove ----
+                var heroList = [];
+                var HERO_MAX = 8;
+
+                function heroStatus(text, isError) {
+                    var el = document.getElementById('heroStatus');
+                    el.className = 'img-status' + (isError ? ' err' : '');
+                    el.textContent = text || '';
+                }
+
+                function renderHero() {
+                    var grid = document.getElementById('heroGrid');
+                    if (!heroList.length) {
+                        grid.innerHTML = '<div class="hero-empty">لا توجد صور — ستظهر الصور الافتراضية. أضف صوراً من جهازك.</div>';
+                        return;
+                    }
+                    grid.innerHTML = heroList.map(function(url, i) {
+                        return '<div class="hero-card">' +
+                            '<div class="hero-thumb"><img src="' + escapeHtml(url) + '" alt="" onerror="this.parentNode.classList.add(\'broken\')" /><span class="hero-num">' + (i + 1) + '</span></div>' +
+                            '<div class="hero-card-actions">' +
+                                '<button type="button" class="small-btn" title="تقديم" onclick="moveHero(' + i + ',-1)"' + (i === 0 ? ' disabled' : '') + '>→</button>' +
+                                '<button type="button" class="small-btn" title="تأخير" onclick="moveHero(' + i + ',1)"' + (i === heroList.length - 1 ? ' disabled' : '') + '>←</button>' +
+                                '<label class="small-btn img-pick" title="استبدال بصورة من الجهاز">استبدال<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="replaceHero(' + i + ', this)" /></label>' +
+                                '<button type="button" class="small-btn danger" onclick="removeHero(' + i + ')">حذف</button>' +
+                            '</div></div>';
+                    }).join('');
+                }
+
+                function saveHero(okText) {
+                    heroStatus('جاري الحفظ...');
+                    return fetch('/api/admin/hero-images', {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(heroList)
+                    }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); }).then(function(res) {
+                        if (res.ok && res.data.success) { heroList = res.data.heroImages; contentData.heroImages = heroList.slice(); renderHero(); heroStatus(okText || 'تم الحفظ ✓'); }
+                        else heroStatus(res.data.message || 'حدث خطأ أثناء الحفظ', true);
+                    }).catch(function() { heroStatus('حدث خطأ أثناء الحفظ', true); });
+                }
+
+                function addHeroFiles(input) {
+                    var files = Array.prototype.slice.call(input.files || []);
+                    input.value = '';
+                    if (!files.length) return;
+                    var room = HERO_MAX - heroList.length;
+                    if (room <= 0) { heroStatus('الحد الأقصى ' + HERO_MAX + ' صور. احذف صورة أولاً.', true); return; }
+                    if (files.length > room) files = files.slice(0, room);
+                    var done = 0, failed = [];
+                    heroStatus('جاري رفع ' + files.length + ' صورة...');
+                    // one after another, so they keep the order they were picked in
+                    files.reduce(function(p, f) {
+                        return p.then(function() {
+                            return uploadSiteImage(f).then(function(url) { heroList.push(url); done++; renderHero(); heroStatus('تم رفع ' + done + ' من ' + files.length + '...'); },
+                                                          function(msg) { failed.push(f.name + ': ' + msg); });
+                        });
+                    }, Promise.resolve()).then(function() {
+                        if (done) saveHero(failed.length ? 'تم حفظ ' + done + ' صورة. لم تُرفع: ' + failed.join(' · ') : 'تمت إضافة الصور وحفظها ✓');
+                        else heroStatus(failed.join(' · '), true);
+                    });
+                }
+
+                function replaceHero(i, input) {
+                    var f = input.files && input.files[0];
+                    input.value = '';
+                    if (!f) return;
+                    heroStatus('جاري الرفع...');
+                    uploadSiteImage(f).then(function(url) { heroList[i] = url; saveHero('تم استبدال الصورة ✓'); }, function(msg) { heroStatus(msg, true); });
+                }
+
+                function moveHero(i, d) {
+                    var j = i + d;
+                    if (j < 0 || j >= heroList.length) return;
+                    var t = heroList[i]; heroList[i] = heroList[j]; heroList[j] = t;
+                    saveHero('تم تغيير الترتيب ✓');
+                }
+
+                function removeHero(i) {
+                    if (!confirm('حذف هذه الصورة من شريط الواجهة؟')) return;
+                    heroList.splice(i, 1);
+                    saveHero('تم الحذف ✓');
+                }
+
+                function addHeroUrl() {
+                    if (heroList.length >= HERO_MAX) { heroStatus('الحد الأقصى ' + HERO_MAX + ' صور. احذف صورة أولاً.', true); return; }
+                    var url = (prompt('الصق رابط الصورة (يبدأ بـ https://)') || '').trim();
+                    if (!url) return;
+                    heroList.push(url);
+                    saveHero();
                 }
 
                 function escapeHtml(str) {
@@ -6341,7 +6348,7 @@ namespace ConsanWebApp
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + "</style>\n</head>\n" + body.Replace("%%MAPSV%%", AssetVersion) + "\n</html>";
+            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + "</style>\n</head>\n" + body.Replace("%%MAPSV%%", AssetVersion).Replace("%%MAPCFG%%", MapConfigScript()) + "\n</html>";
         }
     }
 }

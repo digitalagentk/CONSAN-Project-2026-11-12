@@ -1,8 +1,11 @@
 /* ME Workshop — shared map settings.
-   Every map on the site is locked to Najaf's Industrial District, across the road
-   from the University of Kufa. Street tiles: OpenStreetMap. Imagery: Esri. */
+   The workshop position and the pan area come from the server (Pages.MapConfig): the
+   workshop pin edited in the dashboard, and the Industrial District grown to include
+   every approved location. Public maps are locked to that area; dashboard maps are
+   created with { meFree: true } so staff can place a pin anywhere.
+   Street tiles: OpenStreetMap. Imagery: Esri. */
 (function () {
-    var C = window.ME_CONTENT || {};
+    var C = window.ME_MAP || window.ME_CONTENT || {};
     var center = C.pin || [32.0118, 44.3775];
     var box = C.bounds || [[32.0030, 44.3655], [32.0225, 44.3905]];
 
@@ -104,11 +107,12 @@
 
     if (window.L && L.Map) {
         L.Map.addInitHook(function () {
+            if (this.attributionControl) this.attributionControl.setPrefix(false);
+            if (this.options.meFree) return;
             var b = L.latLngBounds(box);
             this.setMaxBounds(b.pad(0.02));
             this.options.maxBoundsViscosity = 1;
             this.setMinZoom(15);
-            if (this.attributionControl) this.attributionControl.setPrefix(false);
         });
     }
 })();

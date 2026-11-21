@@ -16,7 +16,7 @@ namespace ConsanWebApp
     public static partial class Pages
     {
         // Bump when files under wwwroot/me change so browsers fetch the new ones.
-        public const string AssetVersion = "2026-11-14.5";
+        public const string AssetVersion = "2026-11-21.1";
         public const int FoundedYear = 1945;
         public const string SiteName = "ME Workshop";
         public const string SiteNameFull = "Middle Euphrates Workshop";

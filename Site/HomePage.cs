@@ -12,8 +12,8 @@ namespace ConsanWebApp
 {
     public static partial class Pages
     {
-        // Approximate centre of the workshop and the box the maps are locked to:
-        // Najaf's Industrial District, across the road from the University of Kufa.
+        // Fallback position of the workshop (used until the workshop pin is saved in the dashboard)
+        // and the Industrial District box every public map starts from (see MapConfig.cs).
         public static readonly double[] WorkshopPin = { 32.0118, 44.3775 };
         public static readonly double[][] DistrictBounds = { new[] { 32.0030, 44.3655 }, new[] { 32.0225, 44.3905 } };
 
@@ -208,6 +208,8 @@ namespace ConsanWebApp
             </body>
             """;
 
+            var mapCfg = MapConfig();
+            var mapCfgPin = (double[])mapCfg["pin"];
             body = body.Replace("%%NAV%%", GetNavbarHtml())
                        .Replace("%%SLIDES%%", slides.ToString())
                        .Replace("%%TEL%%", firstIntl)
@@ -215,8 +217,8 @@ namespace ConsanWebApp
                        .Replace("%%CRAFT%%", craft.ToString())
                        .Replace("%%STEPS%%", steps.ToString())
                        .Replace("%%PEOPLE%%", people.ToString())
-                       .Replace("%%LAT%%", WorkshopPin[0].ToString(System.Globalization.CultureInfo.InvariantCulture))
-                       .Replace("%%LNG%%", WorkshopPin[1].ToString(System.Globalization.CultureInfo.InvariantCulture))
+                       .Replace("%%LAT%%", Coord(mapCfgPin[0]))
+                       .Replace("%%LNG%%", Coord(mapCfgPin[1]))
                        .Replace("%%GALLERY%%", GalleryHomeSection(galleryItems))
                        .Replace("%%FOOTER%%", GetFooterHtml())
                        .Replace("%%CONTACT%%", GetContactWidgetHtml());
@@ -225,8 +227,8 @@ namespace ConsanWebApp
             {
                 ["archive"] = Store.GetArchivalAlbum(),
                 ["gallery"] = galleryItems.Take(8).Select(GalleryFeature.PublicView).ToList(),
-                ["pin"] = WorkshopPin,
-                ["bounds"] = DistrictBounds
+                ["pin"] = mapCfg["pin"],
+                ["bounds"] = mapCfg["bounds"]
             };
 
             return PageShell("ME Workshop | ورشة الفرات الأوسط — Middle Euphrates Workshop, since 1945", "", body, extra);
