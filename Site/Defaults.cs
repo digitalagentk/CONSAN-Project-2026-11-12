@@ -429,7 +429,9 @@ namespace ConsanWebApp
                     Persist(ContentPath, _content);
                 }
 
-                bool oldArchive = _archival == null || _archival.Count == 0
+                // An empty album is a choice staff made, so it is left empty (a missing file
+                // already gets the defaults when it is loaded).
+                bool oldArchive = _archival == null
                     || _archival.Any(a => a.Year == "1900" || LegacyPhotos.Keys.Any(k => (a.ImageUrl ?? "").Contains(k)));
                 if (oldArchive)
                 {

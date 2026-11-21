@@ -810,30 +810,60 @@ namespace ConsanWebApp
             UpgradeLegacyData();
         }
 
+        // Loads a data file. If it can't be read, the last good copy (.bak) is used instead,
+        // and an unreadable file is set aside (never overwritten), so saved photos and text
+        // are not replaced by the defaults after a crash or a bad write.
         private static T LoadOrDefault<T>(string path, Func<T> makeDefault)
         {
-            try
+            if (TryLoad(path, out T? data)) return data!;
+            if (File.Exists(path))
             {
-                if (File.Exists(path))
-                {
-                    string json = File.ReadAllText(path);
-                    T? obj = JsonSerializer.Deserialize<T>(json, ApiJsonOptions);
-                    if (obj != null) return obj;
-                }
+                Console.WriteLine("⚠️ Could not read " + path + " — trying the backup copy");
+                try { File.Copy(path, path + ".unreadable-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss"), true); } catch { }
             }
-            catch
+            if (TryLoad(path + ".bak", out T? backup))
             {
-                // fall through to default
+                Console.WriteLine("✅ Restored " + path + " from its backup copy");
+                Persist(path, backup!);
+                return backup!;
             }
-
             T def = makeDefault();
-            try { File.WriteAllText(path, JsonSerializer.Serialize(def, FileJsonOptions)); } catch { }
+            if (!File.Exists(path)) Persist(path, def);   // first run only: never overwrite a file we couldn't read
             return def;
         }
 
+        private static bool TryLoad<T>(string path, out T? data)
+        {
+            data = default;
+            try
+            {
+                if (!File.Exists(path)) return false;
+                data = JsonSerializer.Deserialize<T>(File.ReadAllText(path), ApiJsonOptions);
+                return data != null;
+            }
+            catch { return false; }
+        }
+
+        // Writes a data file safely: write a temporary file, keep the previous version as
+        // <file>.bak, then swap the new one in. A crash mid-save can't leave a half-written file.
+        private static readonly object PersistLock = new object();
         private static void Persist<T>(string path, T data)
         {
-            try { File.WriteAllText(path, JsonSerializer.Serialize(data, FileJsonOptions)); } catch { }
+            lock (PersistLock)
+            {
+                string tmp = path + ".tmp";
+                try
+                {
+                    File.WriteAllText(tmp, JsonSerializer.Serialize(data, FileJsonOptions));
+                    if (File.Exists(path)) File.Copy(path, path + ".bak", true);
+                    File.Move(tmp, path, true);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("❌ Could not save " + path + ": " + ex.Message);
+                    try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+                }
+            }
         }
 
         // ---------------------------------------------------------------
