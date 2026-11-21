@@ -1,0 +1,35 @@
+# Deploys the site to Railway (kormanyworkshop.com) on every push to master.
+# Needs a repository secret RAILWAY_TOKEN: a Railway *project* token for
+# consan-project / production (Railway → project → Settings → Tokens).
+# Without the secret the job is skipped, so pushes still succeed.
+#
+# Site data and uploaded photos live on the Railway volume at /app/data, which a
+# deploy never touches. Back it up with scripts/backup-railway-data.sh.
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: railway-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Check for the Railway token
+        id: token
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "::warning::RAILWAY_TOKEN secret is not set — skipping deploy"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.ok == 'true'
+
+      - name: Deploy
+        if: steps.token.outputs.ok == 'true'
+        run: npx --yes @railway/cli@5 up --service consan-project --ci -m "${GITHUB_SHA::7} via GitHub Actions"
