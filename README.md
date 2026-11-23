@@ -101,7 +101,7 @@ Arabic, Kurdish and Persian are shown right to left; Turkish and English left to
 
 ## Orion — the AI assistant
 
-Orion (أوريون) is the workshop's AI assistant on every public page (Google Gemini, model `gemini-3.5-flash`, falling back to `gemini-3.5-flash-lite` when Flash is over quota).
+Orion (أوريون) is the workshop's AI assistant on every public page (Google Gemini, model `gemini-3.1-flash-lite`, falling back to `gemini-3.5-flash-lite` when it is over quota or busy).
 
 - Right after a visitor chooses a language (and once per visit after that), Orion greets them in that language with three buttons: book a visit, WhatsApp, or ask Orion.
 - Orion is patient and guiding: it answers only from the information the owner provides, never invents prices or confirms times, replies in the visitor's language (detected from what they type), and leads them to a booking request, a call or a WhatsApp message.
@@ -125,7 +125,7 @@ Orion (أوريون) is the workshop's AI assistant on every public page (Google
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GEMINI_MODEL` | `gemini-3.5-flash` | Model name (Google no longer offers the 2.5 models to new keys) |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` | Model name (Google no longer offers the 2.5 models to new keys) |
 | `GEMINI_FALLBACK_MODEL` | `gemini-3.5-flash-lite` | Used when the main model is over quota or busy; `none` turns it off |
 | `CHAT_PER_MINUTE` | 6 | Messages per visitor IP per minute |
 | `CHAT_PER_DAY` | 40 | Messages per visitor IP per day |
@@ -137,7 +137,7 @@ Orion (أوريون) is the workshop's AI assistant on every public page (Google
 
 Limits are kept in memory, so they reset when the app restarts.
 
-On Google's free tier the key allows only a few requests per minute (5 for `gemini-3.5-flash`), and Google may use free-tier conversations to improve its products. For real traffic, turn on billing for the key's project in Google AI Studio.
+On Google's free tier the key allows only a few requests per minute per model, and Google may use free-tier conversations to improve its products. For real traffic, turn on billing for the key's project in Google AI Studio.
 
 ### Conversation logs
 

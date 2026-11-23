@@ -12,7 +12,7 @@
 //
 // Environment variables (all optional except the key):
 //   GEMINI_API_KEY        Google AI Studio key. Without it the chat button is hidden.
-//   GEMINI_MODEL          default gemini-3.5-flash
+//   GEMINI_MODEL          default gemini-3.1-flash-lite
 //   GEMINI_FALLBACK_MODEL default gemini-3.5-flash-lite, used when the main model is over quota ("none" = off)
 //   GEMINI_API_BASE       default https://generativelanguage.googleapis.com (change only for testing)
 //   CHAT_PER_MINUTE       messages per IP per minute        (default 6)
@@ -118,7 +118,7 @@ namespace ConsanWebApp
     {
         // ---- configuration --------------------------------------------------
         private static string ApiKey => Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? "";
-        internal static string Model => Env("GEMINI_MODEL", "gemini-3.5-flash");
+        internal static string Model => Env("GEMINI_MODEL", "gemini-3.1-flash-lite");
         // Used when the main model is over its quota or overloaded (429/503). Set to "none" to turn off.
         private static string FallbackModel => Env("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite");
         private static string ApiBase => Env("GEMINI_API_BASE", "https://generativelanguage.googleapis.com").TrimEnd('/');
