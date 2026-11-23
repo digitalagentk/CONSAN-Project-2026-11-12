@@ -41,6 +41,7 @@ namespace ConsanWebApp
         // Orion charges start with the billing month that begins on or after this date;
         // earlier months run as a trial: the standard reserve, nothing billed, no extra usage.
         public string BillingFrom { get; set; } = "2026-11-13";
+        public string VoiceRequestedAt { get; set; } = "";   // the owner asked for voice calls to be built
         public Dictionary<string, AiCycle> Cycles { get; set; } = new Dictionary<string, AiCycle>();
     }
 
@@ -68,11 +69,9 @@ namespace ConsanWebApp
         public sealed class PlanInfo { public string Id = ""; public string Name = ""; public decimal Reserve; }
         public static readonly PlanInfo[] Plans =
         {
-            new PlanInfo { Id = "standard", Name = "الأساسية", Reserve = 10m },
-            new PlanInfo { Id = "upgraded", Name = "الموسّعة", Reserve = 20m },
-            new PlanInfo { Id = "plus", Name = "أوريون بلس — محادثة ومكالمات صوتية", Reserve = 20m }
+            new PlanInfo { Id = "standard", Name = "نصي (Text)", Reserve = 10m }
         };
-        public static PlanInfo PlanOf(string id) => Plans.FirstOrDefault(p => p.Id == id) ?? Plans[0];
+        public static PlanInfo PlanOf(string id) => Plans.FirstOrDefault(p => p.Id == id) ?? Plans[0];   // retired plans fall back to Text
 
         // ---- internal economics (never sent to the browser) ----------------------
         private const decimal ReserveCostShare = 0.5m;        // model cost covered by a reserve: half its price
@@ -205,6 +204,7 @@ namespace ConsanWebApp
                     active,
                     replies = c.Replies,
                     visitors = c.Sids.Count,
+                    voiceRequestedAt = u.VoiceRequestedAt,
                     plans = Plans.Select(p => new { id = p.Id, name = p.Name, reserve = p.Reserve, conversations = ReservedConversations(p), pricePer100 = Math.Round(PricePerConversation(p) * 100, 2) })
                 };
             });
@@ -225,6 +225,7 @@ namespace ConsanWebApp
                 var body = await Store.ReadJsonDict(ctx);
                 body.TryGetValue("plan", out var plan);
                 body.TryGetValue("allowExtra", out var extra);
+                body.TryGetValue("requestVoice", out var voice);
                 if (plan != null && !Plans.Any(p => p.Id == plan)) return Results.Json(new { message = "خطة غير معروفة" }, statusCode: 400);
                 Store.WithAiUsage(u =>
                 {
@@ -240,6 +241,7 @@ namespace ConsanWebApp
                             c.ExtraCost = Math.Min(c.ExtraCost, Math.Max(0, c.Cost - CostCap(PlanOf(plan))));
                         }
                     }
+                    if (voice == "true" && u.VoiceRequestedAt.Length == 0) u.VoiceRequestedAt = DateTime.UtcNow.ToString("o");
                     if (extra != null) { bool on = extra == "true" || extra == "1"; u.AllowExtra = on; c.AllowExtra = on; }
                     if (c.Cost < CostCap(PlanOf(c.Plan)) || ExtraOn(u, c)) c.PausedAt = "";
                     return true;

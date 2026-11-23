@@ -6397,6 +6397,14 @@ namespace ConsanWebApp
                         if (!current || next) b.onclick = function() { if (confirm('تغيير خطة أوريون إلى «' + p.name + '» (' + money(p.reserve) + ' شهرياً)؟')) setOrionUsage({ plan: p.id }); };
                         plans.appendChild(b);
                     });
+                    var v = document.createElement('button');
+                    v.type = 'button';
+                    v.className = 'ou-plan' + (u.voiceRequestedAt ? ' next' : '');
+                    v.innerHTML = '<b>صوتي (Voice)</b><span class="ou-price ltr">$20.00<small> / شهرياً</small></span>' +
+                        '<span>يتصل الزوار بأوريون صوتياً بدل الكتابة</span>' +
+                        '<small>' + (u.voiceRequestedAt ? 'تم استلام طلبك — سنتواصل معك لتجهيزه' : 'ميزة جديدة: اضغط لطلب تجهيزها') + '</small>';
+                    if (!u.voiceRequestedAt) v.onclick = function() { if (confirm('طلب تجهيز أوريون الصوتي ($20 شهرياً)؟')) setOrionUsage({ requestVoice: 'true' }); };
+                    plans.appendChild(v);
                     document.getElementById('ouPlanNote').textContent = 'الترقية تُطبّق فوراً على هذا الشهر. العودة إلى الخطة الأساسية تبدأ من الشهر القادم. المبلغ المحجوز ثابت كل شهر، ولا يظهر في الفاتورة أي مبلغ إضافي إلا إذا تجاوز الاستخدام المحجوز وكان خيار الاستمرار مفعّلاً.';
                     document.querySelectorAll('input[name="ouExtra"]').forEach(function(r) { r.checked = (r.value === 'true') === !!u.allowExtra; });
                     var cur = u.plans.filter(function(p) { return p.id === u.plan; })[0];
