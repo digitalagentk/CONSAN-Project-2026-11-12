@@ -805,7 +805,7 @@ namespace ConsanWebApp
         {
             return """
                     <section id="tab-chatbot" class="tab-panel">
-                        <div class="bill-card">
+                        <div class="bill-card" hidden>
                             <h2 style="margin-bottom:10px">أوريون — المساعد الذكي (Gemini)</h2>
                             <div class="cb-status" id="cbStatus">جارٍ التحميل…</div>
                         </div>
