@@ -40,7 +40,7 @@ namespace ConsanWebApp
         public bool AllowExtra { get; set; } = false;
         // Orion charges start with the billing month that begins on or after this date;
         // earlier months run as a trial: the standard reserve, nothing billed, no extra usage.
-        public string BillingFrom { get; set; } = "2026-12-13";
+        public string BillingFrom { get; set; } = "2026-11-13";
         public Dictionary<string, AiCycle> Cycles { get; set; } = new Dictionary<string, AiCycle>();
     }
 
@@ -54,7 +54,7 @@ namespace ConsanWebApp
         {
             lock (AiUsageLock)
             {
-                if (_aiUsage == null) _aiUsage = LoadOrDefault(AiUsagePath, () => new AiUsageData());
+                if (_aiUsage == null) { _aiUsage = LoadOrDefault(AiUsagePath, () => new AiUsageData()); if (_aiUsage.BillingFrom == "2026-12-13") _aiUsage.BillingFrom = "2026-11-13"; }
                 var r = f(_aiUsage);
                 if (save) Persist(AiUsagePath, _aiUsage);
                 return r;
@@ -69,7 +69,8 @@ namespace ConsanWebApp
         public static readonly PlanInfo[] Plans =
         {
             new PlanInfo { Id = "standard", Name = "الأساسية", Reserve = 10m },
-            new PlanInfo { Id = "upgraded", Name = "الموسّعة", Reserve = 20m }
+            new PlanInfo { Id = "upgraded", Name = "الموسّعة", Reserve = 20m },
+            new PlanInfo { Id = "plus", Name = "أوريون بلس — محادثة ومكالمات صوتية", Reserve = 20m }
         };
         public static PlanInfo PlanOf(string id) => Plans.FirstOrDefault(p => p.Id == id) ?? Plans[0];
 

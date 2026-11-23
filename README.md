@@ -152,7 +152,7 @@ The monthly invoice (dashboard → **الفوترة والإدامة**) is:
 
 - A conversation is measured by the volume of questions and replies; long chats and bookings count for more.
 - In the same tab the owner picks the plan and what happens when the reserve runs out: Orion pauses until next month (no extra charge), or keeps running and the extra conversations are added to the invoice. An upgrade applies at once; a downgrade from next month.
-- Orion charges start with the invoice of `BillingFrom` in `data/ai-usage.json` (2026-12-13). Months before that are a free trial: Orion pauses when the standard reserve is used up.
+- Orion charges start with the invoice of `BillingFrom` in `data/ai-usage.json` (2026-11-13).
 - Usage per month is kept in `data/ai-usage.json`.
 
 ### Conversation logs

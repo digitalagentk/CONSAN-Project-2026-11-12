@@ -6393,7 +6393,7 @@ namespace ConsanWebApp
                         b.className = 'ou-plan' + (current ? ' current' : '') + (next ? ' next' : '');
                         b.innerHTML = '<b>' + escapeHtml(p.name) + '</b><span class="ou-price ltr">' + money(p.reserve) + '<small> / شهرياً</small></span>' +
                             '<span>' + nf(p.conversations) + ' محادثة محجوزة كل شهر</span>' +
-                            '<small>' + (current ? 'خطتك الحالية' : next ? 'تبدأ من الشهر القادم' : (p.reserve > 10 ? 'ترقية: ضعف المحادثات المحجوزة' : 'اختيار هذه الخطة')) + '</small>';
+                            '<small>' + (current ? 'خطتك الحالية' : next ? 'تبدأ من الشهر القادم' : (p.id === 'plus' ? 'يتيح للزوار الاتصال الصوتي بأوريون بدل الكتابة فقط' : p.reserve > 10 ? 'ترقية: ضعف المحادثات المحجوزة' : 'اختيار هذه الخطة')) + '</small>';
                         if (!current || next) b.onclick = function() { if (confirm('تغيير خطة أوريون إلى «' + p.name + '» (' + money(p.reserve) + ' شهرياً)؟')) setOrionUsage({ plan: p.id }); };
                         plans.appendChild(b);
                     });
