@@ -108,9 +108,12 @@ namespace ConsanWebApp
             int cycles = 0;
             while (start.AddMonths(cycles) <= today) cycles++;
 
+            // Each month: website maintenance, plus Orion's reserve and any extra usage that month.
             decimal amount = b.MonthlyAmount;
+            var months = Enumerable.Range(0, cycles).Select(k => { var ai = AiBilling.Charges(start.AddMonths(k)); return (maint: amount, reserve: ai.reserve, extra: ai.extra, plan: ai.plan); }).ToList();
+            decimal MonthTotal(int k) => months[k].maint + months[k].reserve + months[k].extra;
             decimal paid = b.Payments.Sum(p => p.Amount);
-            decimal billed = cycles * amount;
+            decimal billed = Enumerable.Range(0, cycles).Sum(MonthTotal);
             decimal balance = Math.Max(0, billed - paid);
             decimal credit = Math.Max(0, paid - billed);
 
@@ -121,18 +124,22 @@ namespace ConsanWebApp
             {
                 var from = start.AddMonths(k);
                 var to = start.AddMonths(k + 1).AddDays(-1);
-                decimal applied = Math.Min(amount, Math.Max(0, pool));
+                decimal total = MonthTotal(k);
+                decimal applied = Math.Min(total, Math.Max(0, pool));
                 pool -= applied;
-                string status = applied >= amount ? "paid" : (applied > 0 ? "partial" : (k == cycles - 1 ? "due" : "overdue"));
+                string status = applied >= total ? "paid" : (applied > 0 ? "partial" : (k == cycles - 1 ? "due" : "overdue"));
                 invoices.Add(new
                 {
                     number = "INV-" + from.ToString("yyyyMM", CultureInfo.InvariantCulture),
                     periodStart = D(from),
                     periodEnd = D(to),
                     dueDate = D(from),
-                    amount,
+                    amount = total,
+                    maintenance = months[k].maint,
+                    orionReserve = months[k].reserve,
+                    orionExtra = months[k].extra,
                     paid = applied,
-                    remaining = amount - applied,
+                    remaining = total - applied,
                     status
                 });
             }
@@ -140,8 +147,11 @@ namespace ConsanWebApp
 
             DateTime currentStart = cycles > 0 ? start.AddMonths(cycles - 1) : start;
             DateTime nextRenewal = cycles > 0 ? start.AddMonths(cycles) : start;
-            decimal previousBalance = Math.Max(0, balance - (cycles > 0 ? amount : 0));
-            int monthsOpen = amount > 0 ? (int)Math.Ceiling(balance / amount) : 0;
+            decimal currentTotal = cycles > 0 ? MonthTotal(cycles - 1) : 0;
+            decimal previousBalance = Math.Max(0, balance - currentTotal);
+            int monthsOpen = 0;
+            { decimal rest = balance; for (int k = cycles - 1; k >= 0 && rest > 0; k--) { monthsOpen++; rest -= MonthTotal(k); } }
+            var nextAi = AiBilling.Charges(nextRenewal);
 
             string state = cycles == 0 ? "upcoming"
                 : balance <= 0 ? "paid"
@@ -152,7 +162,13 @@ namespace ConsanWebApp
             {
                 plan = "الإدامة الشهرية للموقع",
                 currency = b.Currency,
-                monthlyAmount = amount,
+                maintenanceAmount = amount,
+                // the fixed part of next month's invoice (maintenance + Orion reserve), extra usage not included
+                monthlyAmount = amount + nextAi.reserve,
+                currentMaintenance = cycles > 0 ? months[cycles - 1].maint : amount,
+                currentOrionReserve = cycles > 0 ? months[cycles - 1].reserve : 0,
+                currentOrionExtra = cycles > 0 ? months[cycles - 1].extra : 0,
+                currentTotal,
                 startDate = b.StartDate,
                 today = D(today),
                 currentInvoice = cycles > 0 ? "INV-" + currentStart.ToString("yyyyMM", CultureInfo.InvariantCulture) : "",

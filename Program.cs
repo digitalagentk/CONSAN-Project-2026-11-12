@@ -186,6 +186,7 @@ namespace ConsanWebApp
             BillingFeature.MapBilling(app);
             VisitorFeature.MapVisitors(app);
             ChatbotFeature.MapChatbot(app);
+            AiBilling.MapAiBilling(app);
 
             // Anything else falls back to the home page
             app.MapFallback(() => Results.Content(Pages.GetHomePage(), "text/html; charset=utf-8"));
@@ -3703,6 +3704,36 @@ namespace ConsanWebApp
             .bill-totals > div:last-child { border: 0; font-weight: 700; color: #fff; }
             .bill-totals dt { color: #999; }
             .bill-wide { margin-top: 20px; }
+            .orion-usage .ou-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+            .orion-usage .ou-sub { color: #9a9a9a; font-size: 0.9rem; margin-top: 6px; max-width: 760px; line-height: 1.7; }
+            .ou-state { padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+            .ou-state.on { background: rgba(80, 180, 110, 0.18); color: #7fd99a; }
+            .ou-state.off { background: rgba(220, 90, 70, 0.18); color: #ff9b8a; }
+            .ou-trial { margin-top: 14px; padding: 10px 14px; border: 1px dashed rgba(212,175,55,0.5); border-radius: 10px; color: #e8d49a; font-size: 0.9rem; }
+            .ou-meter { margin: 18px 0 6px; }
+            .ou-meter-top, .ou-meter-bottom { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.9rem; color: #bdbdbd; }
+            .ou-meter-top b { font-size: 1.25rem; color: #fff; }
+            .ou-bar { height: 12px; background: #0f0f10; border: 1px solid #2a2a2a; border-radius: 999px; overflow: hidden; margin: 8px 0; }
+            .ou-bar i { display: block; height: 100%; background: linear-gradient(90deg, #b8935a, #D4AF37); border-radius: 999px; transition: width 0.4s; }
+            .ou-bar i.warn { background: linear-gradient(90deg, #d49b37, #e8b04a); }
+            .ou-bar i.full { background: linear-gradient(90deg, #c2553f, #e07a5f); }
+            .ou-h { margin: 22px 0 10px; font-size: 1rem; color: #D4AF37; }
+            .ou-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+            .ou-plan { display: flex; flex-direction: column; gap: 4px; text-align: start; padding: 14px 16px; background: #121213; border: 1px solid #2a2a2a; border-radius: 12px; color: #e6e6e6; cursor: pointer; font: inherit; }
+            .ou-plan:hover { border-color: #D4AF37; }
+            .ou-plan.current { border: 2px solid #D4AF37; cursor: default; background: rgba(212,175,55,0.07); }
+            .ou-plan.next { border-style: dashed; border-color: #D4AF37; }
+            .ou-plan b { font-size: 1.05rem; }
+            .ou-plan .ou-price { font-size: 1.5rem; font-weight: 800; color: #fff; }
+            .ou-plan .ou-price small { font-size: 0.8rem; font-weight: 500; color: #9a9a9a; }
+            .ou-plan small { color: #9a9a9a; }
+            .ou-note { color: #8f8f8f; font-size: 0.84rem; margin-top: 10px; line-height: 1.7; }
+            .ou-options { display: grid; gap: 10px; }
+            .ou-opt { display: flex !important; flex-direction: row !important; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid #2a2a2a; border-radius: 12px; cursor: pointer; background: #121213; }
+            .ou-opt:has(input:checked) { border-color: #D4AF37; background: rgba(212,175,55,0.07); }
+            .ou-opt input { width: 18px !important; height: 18px; margin-top: 3px; flex: none; accent-color: #D4AF37; }
+            .ou-opt span { display: flex; flex-direction: column; gap: 4px; }
+            .ou-opt small { color: #9a9a9a; line-height: 1.6; font-size: 0.86rem; }
             .bill-table td.num { direction: ltr; text-align: end; font-variant-numeric: tabular-nums; }
             .bill-pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; border: 1px solid currentColor; }
             .bill-pill.s-paid { color: #4ade80; } .bill-pill.s-partial { color: #fbbf24; } .bill-pill.s-due { color: #D4AF37; } .bill-pill.s-overdue { color: #f87171; }
@@ -4595,6 +4626,8 @@ namespace ConsanWebApp
                                 <table class="invoice-lines">
                                     <tbody>
                                         <tr><td>رسوم الإدامة الشهرية للموقع <button type="button" class="bill-info" aria-label="لماذا هذه الفاتورة؟" onclick="toggleBillInfo(event, this)">!</button></td><td class="num" id="invMonthly">-</td></tr>
+                                        <tr id="invOrionRow" hidden><td>المساعد الذكي أوريون — المحادثات المحجوزة (<span id="invOrionPlan"></span>)</td><td class="num" id="invOrion">-</td></tr>
+                                        <tr id="invOrionExtraRow" hidden><td>أوريون — استخدام إضافي فوق المحجوز (<bdi id="invOrionExtraN"></bdi> محادثة)</td><td class="num" id="invOrionExtra">-</td></tr>
                                         <tr><td>رصيد سابق غير مسدد</td><td class="num" id="invPrev">-</td></tr>
                                         <tr class="credit-row" id="invCreditRow" hidden><td>رصيد دائن (مدفوع مقدماً)</td><td class="num" id="invCredit">-</td></tr>
                                     </tbody>
@@ -4625,6 +4658,36 @@ namespace ConsanWebApp
                             </aside>
                         </div>
 
+                        <div class="bill-card bill-wide orion-usage" id="orionUsageCard" hidden>
+                            <div class="ou-head">
+                                <div>
+                                    <h3>المساعد الذكي أوريون — المحادثات المحجوزة</h3>
+                                    <p class="ou-sub">يُحجز لأوريون كل شهر عدد ثابت من المحادثات مع زوار الموقع. تُقاس المحادثة بحجم الأسئلة والردود بين الزائر وأوريون: المحادثة القصيرة تستهلك أقل، والطويلة أو التي تنتهي بحجز موعد تستهلك أكثر.</p>
+                                </div>
+                                <span class="ou-state" id="ouState"></span>
+                            </div>
+                            <div class="ou-trial" id="ouTrial" hidden></div>
+
+                            <div class="ou-meter">
+                                <div class="ou-meter-top"><b id="ouUsed">-</b><span id="ouPeriod"></span></div>
+                                <div class="ou-bar"><i id="ouBar"></i></div>
+                                <div class="ou-meter-bottom"><span id="ouRemain"></span><span id="ouStats"></span></div>
+                            </div>
+
+                            <h4 class="ou-h">الخطة الشهرية</h4>
+                            <div class="ou-plans" id="ouPlans"></div>
+                            <p class="ou-note" id="ouPlanNote"></p>
+
+                            <h4 class="ou-h">عند انتهاء المحادثات المحجوزة</h4>
+                            <div class="ou-options">
+                                <label class="ou-opt"><input type="radio" name="ouExtra" value="false" onchange="setOrionUsage({ allowExtra: 'false' })" />
+                                    <span><b>إيقاف أوريون حتى الشهر القادم</b><small>لا تُدفع أي مبالغ إضافية. يختفي أوريون من الموقع عند انتهاء المحادثات المحجوزة، ويعود تلقائياً مع بداية الشهر الجديد.</small></span></label>
+                                <label class="ou-opt"><input type="radio" name="ouExtra" value="true" onchange="setOrionUsage({ allowExtra: 'true' })" />
+                                    <span><b>استمرار أوريون مع الاستخدام الإضافي</b><small>يبقى أوريون يتحدث مع الزوار ولا يفوّت أي زبون. تُضاف المحادثات الإضافية إلى الفاتورة بسعر <bdi dir="ltr" id="ouPer100"></bdi> لكل 100 محادثة.</small></span></label>
+                            </div>
+                            <div class="bill-msg" id="ouMsg"></div>
+                        </div>
+
                         <div class="bill-card bill-wide">
                             <h3>سجل الدفعات</h3>
                             <div class="table-wrap">
@@ -4639,7 +4702,7 @@ namespace ConsanWebApp
                             <h3>سجل الفواتير</h3>
                             <div class="table-wrap">
                                 <table class="bill-table">
-                                    <thead><tr><th>رقم الفاتورة</th><th>الفترة</th><th>المبلغ</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
+                                    <thead><tr><th>رقم الفاتورة</th><th>الفترة</th><th>الإدامة</th><th>أوريون</th><th>المبلغ</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead>
                                     <tbody id="invRows"></tbody>
                                 </table>
                             </div>
@@ -6281,11 +6344,64 @@ namespace ConsanWebApp
                 }
 
                 function loadBilling() {
+                    loadOrionUsage();
                     return fetch('/api/admin/billing').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
                         if (!data) return;
                         billingCanEdit = !!data.canEdit;
                         renderBilling(data.summary);
                     }).catch(function() { });
+                }
+
+                // ---- Orion reserved conversations ----
+                function nf(n) { return Number(n || 0).toLocaleString('en-US'); }
+                function loadOrionUsage() {
+                    return fetch('/api/admin/orion-usage').then(function(r) { return r.ok ? r.json() : null; }).then(function(u) { if (u) renderOrionUsage(u); }).catch(function() { });
+                }
+                function setOrionUsage(change) {
+                    var msg = document.getElementById('ouMsg');
+                    msg.textContent = 'جارٍ الحفظ…';
+                    fetch('/api/admin/orion-usage', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(change) })
+                        .then(function(r) { return r.json(); }).then(function(d) {
+                            if (d && d.usage) { renderOrionUsage(d.usage); msg.textContent = 'تم الحفظ.'; loadBilling(); }
+                            else msg.textContent = (d && d.message) || 'تعذّر الحفظ.';
+                        }).catch(function() { msg.textContent = 'تعذّر الحفظ.'; });
+                }
+                function renderOrionUsage(u) {
+                    document.getElementById('orionUsageCard').hidden = false;
+                    var state = document.getElementById('ouState');
+                    state.className = 'ou-state ' + (u.active ? 'on' : 'off');
+                    state.textContent = u.active ? 'أوريون يعمل على الموقع' : 'أوريون متوقف حتى الشهر القادم';
+                    var trial = document.getElementById('ouTrial');
+                    trial.hidden = !u.trial;
+                    trial.textContent = u.trial ? 'هذا الشهر فترة تجريبية مجانية لأوريون. تبدأ رسوم المحادثات المحجوزة مع فاتورة ' + niceDate(u.billingFrom) + '، والاستخدام الإضافي متاح بعد ذلك.' : '';
+                    document.getElementById('ouUsed').textContent = nf(u.usedConversations) + ' من ' + nf(u.reservedConversations) + ' محادثة';
+                    document.getElementById('ouPeriod').textContent = niceDate(u.periodStart) + ' – ' + niceDate(u.periodEnd);
+                    var bar = document.getElementById('ouBar');
+                    bar.style.width = u.percentUsed + '%';
+                    bar.className = u.percentUsed >= 100 ? 'full' : (u.percentUsed >= 80 ? 'warn' : '');
+                    document.getElementById('ouRemain').textContent = u.remainingConversations > 0
+                        ? 'متبقٍ ' + nf(u.remainingConversations) + ' محادثة (' + (100 - u.percentUsed) + '%)'
+                        : (u.extraConversations > 0 ? 'استخدام إضافي: ' + nf(u.extraConversations) + ' محادثة — ' + money(u.extraAmount) : 'انتهت المحادثات المحجوزة لهذا الشهر');
+                    document.getElementById('ouStats').textContent = nf(u.visitors) + ' زائر تحدّث مع أوريون · ' + nf(u.replies) + ' رد';
+                    document.getElementById('ouPer100').textContent = money(u.pricePer100);
+                    var plans = document.getElementById('ouPlans');
+                    plans.innerHTML = '';
+                    u.plans.forEach(function(p) {
+                        var current = p.id === u.plan, next = p.id === u.nextPlan && p.id !== u.plan;
+                        var b = document.createElement('button');
+                        b.type = 'button';
+                        b.className = 'ou-plan' + (current ? ' current' : '') + (next ? ' next' : '');
+                        b.innerHTML = '<b>' + escapeHtml(p.name) + '</b><span class="ou-price ltr">' + money(p.reserve) + '<small> / شهرياً</small></span>' +
+                            '<span>' + nf(p.conversations) + ' محادثة محجوزة كل شهر</span>' +
+                            '<small>' + (current ? 'خطتك الحالية' : next ? 'تبدأ من الشهر القادم' : (p.reserve > 10 ? 'ترقية: ضعف المحادثات المحجوزة' : 'اختيار هذه الخطة')) + '</small>';
+                        if (!current || next) b.onclick = function() { if (confirm('تغيير خطة أوريون إلى «' + p.name + '» (' + money(p.reserve) + ' شهرياً)؟')) setOrionUsage({ plan: p.id }); };
+                        plans.appendChild(b);
+                    });
+                    document.getElementById('ouPlanNote').textContent = 'الترقية تُطبّق فوراً على هذا الشهر. العودة إلى الخطة الأساسية تبدأ من الشهر القادم. المبلغ المحجوز ثابت كل شهر، ولا يظهر في الفاتورة أي مبلغ إضافي إلا إذا تجاوز الاستخدام المحجوز وكان خيار الاستمرار مفعّلاً.';
+                    document.querySelectorAll('input[name="ouExtra"]').forEach(function(r) { r.checked = (r.value === 'true') === !!u.allowExtra; });
+                    var cur = u.plans.filter(function(p) { return p.id === u.plan; })[0];
+                    document.getElementById('invOrionPlan').textContent = (cur ? 'الخطة ' + cur.name + ' — ' : '') + nf(u.reservedConversations) + ' محادثة';
+                    document.getElementById('invOrionExtraN').textContent = nf(u.extraConversations);
                 }
 
                 function renderBilling(s) {
@@ -6311,7 +6427,11 @@ namespace ConsanWebApp
                     document.getElementById('invPeriod').textContent = niceDate(s.currentPeriodStart) + ' – ' + niceDate(s.currentPeriodEnd);
                     document.getElementById('invDue').textContent = niceDate(s.dueDate);
                     document.getElementById('invNext').textContent = niceDate(s.nextRenewal);
-                    document.getElementById('invMonthly').textContent = money(s.monthlyAmount);
+                    document.getElementById('invMonthly').textContent = money(s.currentMaintenance);
+                    document.getElementById('invOrionRow').hidden = !(s.currentOrionReserve > 0);
+                    document.getElementById('invOrion').textContent = money(s.currentOrionReserve);
+                    document.getElementById('invOrionExtraRow').hidden = !(s.currentOrionExtra > 0);
+                    document.getElementById('invOrionExtra').textContent = money(s.currentOrionExtra);
                     document.getElementById('invPrev').textContent = money(s.previousBalance);
                     document.getElementById('invTotal').textContent = money(s.balance);
                     document.getElementById('invCreditRow').hidden = !(s.credit > 0);
@@ -6360,7 +6480,9 @@ namespace ConsanWebApp
                         var tr = document.createElement('tr');
                         tr.innerHTML = '<td style="direction:ltr;text-align:start;">' + escapeHtml(inv.number) + '</td>' +
                             '<td>' + escapeHtml(niceDate(inv.periodStart)) + ' – ' + escapeHtml(niceDate(inv.periodEnd)) + '</td>' +
-                            '<td class="num">' + money(inv.amount) + '</td>' +
+                            '<td class="num">' + money(inv.maintenance) + '</td>' +
+                            '<td class="num">' + (inv.orionReserve > 0 ? money(inv.orionReserve) + (inv.orionExtra > 0 ? '<br><small style="color:#D4AF37">+ ' + money(inv.orionExtra) + ' إضافي</small>' : '') : '-') + '</td>' +
+                            '<td class="num"><b>' + money(inv.amount) + '</b></td>' +
                             '<td class="num">' + money(inv.paid) + '</td>' +
                             '<td class="num">' + money(inv.remaining) + '</td>' +
                             '<td><span class="bill-pill s-' + inv.status + '">' + (BILL_STATUS[inv.status] || inv.status) + '</span></td>';

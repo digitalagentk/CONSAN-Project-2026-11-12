@@ -139,6 +139,22 @@ Limits are kept in memory, so they reset when the app restarts.
 
 On Google's free tier the key allows only a few requests per minute per model, and Google may use free-tier conversations to improve its products. For real traffic, turn on billing for the key's project in Google AI Studio.
 
+### Orion plan on the monthly invoice
+
+The monthly invoice (dashboard → **الفوترة والإدامة**) is:
+
+| Line | Amount |
+|---|---|
+| Website maintenance | $20 |
+| Orion reserved conversations: standard plan (2,000 a month) | $10 |
+| or upgraded plan (4,000 a month) | $20 |
+| Extra conversations beyond the reserve, only if extra usage is on | $0.50 per 100 |
+
+- A conversation is measured by the volume of questions and replies; long chats and bookings count for more.
+- In the same tab the owner picks the plan and what happens when the reserve runs out: Orion pauses until next month (no extra charge), or keeps running and the extra conversations are added to the invoice. An upgrade applies at once; a downgrade from next month.
+- Orion charges start with the invoice of `BillingFrom` in `data/ai-usage.json` (2026-12-13). Months before that are a free trial: Orion pauses when the standard reserve is used up.
+- Usage per month is kept in `data/ai-usage.json`.
+
 ### Conversation logs
 
 Every message and reply is saved to `data/chat-logs/YYYY-MM-DD.jsonl` (on Railway: the `/app/data` volume, which deploys never touch; included in `scripts/backup-railway-data.sh` backups of `/app/data`).

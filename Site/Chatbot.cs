@@ -384,7 +384,7 @@ namespace ConsanWebApp
             app.MapGet("/api/chat/config", () =>
             {
                 var s = Store.GetChatbotSettings();
-                return Results.Json(new { enabled = Configured && s.Enabled, maxChars = MaxChars });
+                return Results.Json(new { enabled = Configured && s.Enabled && AiBilling.Available(), maxChars = MaxChars });
             });
 
             app.MapPost("/api/chat", async (HttpContext ctx) =>
@@ -398,7 +398,7 @@ namespace ConsanWebApp
                 string msg = (req.Message ?? "").Trim();
                 var settings = Store.GetChatbotSettings();
 
-                if (!Configured || !settings.Enabled)
+                if (!Configured || !settings.Enabled || !AiBilling.Available())
                     return Results.Json(new { error = "disabled", reply = Notice(lang, 1) }, statusCode: 503);
                 if (msg.Length == 0) return Results.Json(new { error = "empty" }, statusCode: 400);
                 if (msg.Length > MaxChars) return Results.Json(new { error = "too_long", reply = Notice(lang, 2) }, statusCode: 413);
@@ -425,6 +425,7 @@ namespace ConsanWebApp
                 var started = DateTime.UtcNow;
                 var result = await AskGemini(BuildSystemPrompt(settings, lang, first, replyLang), history, msg, new ChatContext { Lang = replyLang, Sid = sid, Ip = MaskIp(ip), Page = Clip(req.Page, 120) });
                 int ms = (int)(DateTime.UtcNow - started).TotalMilliseconds;
+                AiBilling.Record(result.Cost, sid);
 
                 WriteLog(new ChatLogEntry
                 {
@@ -505,7 +506,7 @@ namespace ConsanWebApp
                 return Results.Json(new
                 {
                     date, days,
-                    totals = new { messages = entries.Count, conversations = conversations.Count, errors = entries.Count(e => !e.Ok), phones = conversations.Count(c => c.phone), tokIn = entries.Sum(e => e.TokIn), tokOut = entries.Sum(e => e.TokOut) },
+                    totals = new { messages = entries.Count, conversations = conversations.Count, errors = entries.Count(e => !e.Ok), phones = conversations.Count(c => c.phone) },
                     conversations
                 });
             });
@@ -518,7 +519,8 @@ namespace ConsanWebApp
                 if (!Regex.IsMatch(date, @"^\d{4}-\d{2}-\d{2}$")) return Results.NotFound();
                 string path = Path.Combine(Store.ChatLogDir, date + ".jsonl");
                 if (!File.Exists(path)) return Results.NotFound();
-                return Results.File(File.ReadAllBytes(path), "application/x-ndjson", "chat-" + date + ".jsonl");
+                var lines = ReadLog(date).Select(e => JsonSerializer.Serialize(new { e.T, e.Sid, e.Ip, e.Lang, e.Page, e.Q, e.A, e.Ok, e.Phone }, JsonLog));
+                return Results.File(new UTF8Encoding(false).GetBytes(string.Join("\n", lines) + "\n"), "application/x-ndjson", "chat-" + date + ".jsonl");
             });
         }
 
@@ -528,7 +530,7 @@ namespace ConsanWebApp
         }
 
         // ---- Gemini ------------------------------------------------------------
-        private sealed class GeminiResult { public bool Ok; public string Text = ""; public string Error = ""; public int TokIn; public int TokOut; public Booking? Booking; }
+        private sealed class GeminiResult { public bool Ok; public string Text = ""; public string Error = ""; public int TokIn; public int TokOut; public decimal Cost; public Booking? Booking; }
 
         // The one action Orion can take: save a visit request for the workshop to confirm.
         private static readonly object BookingTool = new
@@ -569,7 +571,7 @@ namespace ConsanWebApp
 
         private static bool _thinkLow;   // some models refuse the "minimal" thinking level; then "low" is used
 
-        private static async Task<(JsonDocument? doc, string error)> CallGemini(object payload, Func<object>? rebuild = null, string? model = null)
+        private static async Task<(JsonDocument? doc, string error, string model)> CallGemini(object payload, Func<object>? rebuild = null, string? model = null)
         {
             model ??= Model;
             string url = ApiBase + "/v1beta/models/" + Uri.EscapeDataString(model) + ":generateContent";
@@ -594,22 +596,25 @@ namespace ConsanWebApp
                 if (!res.IsSuccessStatusCode)
                 {
                     Console.WriteLine("Gemini error " + (int)res.StatusCode + ": " + Clip(body, 400));
-                    return (null, "http " + (int)res.StatusCode);
+                    return (null, "http " + (int)res.StatusCode, model);
                 }
-                return (JsonDocument.Parse(body), "");
+                return (JsonDocument.Parse(body), "", model);
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Gemini request failed: " + ex.GetType().Name + " " + ex.Message);
-                return (null, ex is TaskCanceledException ? "timeout" : "network");
+                return (null, ex is TaskCanceledException ? "timeout" : "network", model);
             }
         }
 
-        private static void AddUsage(JsonElement root, GeminiResult r)
+        private static void AddUsage(JsonElement root, GeminiResult r, string model)
         {
             if (!root.TryGetProperty("usageMetadata", out var u)) return;
-            if (u.TryGetProperty("promptTokenCount", out var pi)) r.TokIn += pi.GetInt32();
-            if (u.TryGetProperty("candidatesTokenCount", out var po)) r.TokOut += po.GetInt32();
+            int tin = u.TryGetProperty("promptTokenCount", out var pi) ? pi.GetInt32() : 0;
+            int tout = u.TryGetProperty("candidatesTokenCount", out var po) ? po.GetInt32() : 0;
+            if (u.TryGetProperty("thoughtsTokenCount", out var pt)) tout += pt.GetInt32();   // thinking is billed as output
+            r.TokIn += tin; r.TokOut += tout;
+            r.Cost += AiBilling.CostOf(model, tin, tout);
         }
 
         private static string TextOf(JsonElement content)
@@ -631,12 +636,12 @@ namespace ConsanWebApp
             var tools = new[] { BookingTool };
 
             var r = new GeminiResult();
-            var (doc, err) = await CallGemini(new { systemInstruction, contents, tools, generationConfig = GenConfig() }, () => new { systemInstruction, contents, tools, generationConfig = GenConfig() });
+            var (doc, err, usedModel) = await CallGemini(new { systemInstruction, contents, tools, generationConfig = GenConfig() }, () => new { systemInstruction, contents, tools, generationConfig = GenConfig() });
             if (doc == null) { r.Error = err; return r; }
             using (doc)
             {
                 var root = doc.RootElement;
-                AddUsage(root, r);
+                AddUsage(root, r, usedModel);
                 if (!root.TryGetProperty("candidates", out var cands) || cands.GetArrayLength() == 0 || !cands[0].TryGetProperty("content", out var content))
                 { r.Error = "empty reply"; return r; }
 
@@ -673,7 +678,7 @@ namespace ConsanWebApp
                 contents.Add(JsonSerializer.Deserialize<object>(content.GetRawText())!);
                 contents.Add(new { role = "user", parts = new object[] { new { functionResponse } } });
 
-                var (doc2, err2) = await CallGemini(new { systemInstruction, contents, tools, generationConfig = GenConfig() }, () => new { systemInstruction, contents, tools, generationConfig = GenConfig() });
+                var (doc2, err2, usedModel2) = await CallGemini(new { systemInstruction, contents, tools, generationConfig = GenConfig() }, () => new { systemInstruction, contents, tools, generationConfig = GenConfig() });
                 if (doc2 == null)
                 {
                     // The booking is saved even if the wording call fails.
@@ -683,7 +688,7 @@ namespace ConsanWebApp
                 using (doc2)
                 {
                     var root2 = doc2.RootElement;
-                    AddUsage(root2, r);
+                    AddUsage(root2, r, usedModel2);
                     if (root2.TryGetProperty("candidates", out var c2) && c2.GetArrayLength() > 0 && c2[0].TryGetProperty("content", out var content2))
                         r.Text = TextOf(content2);
                 }
@@ -786,6 +791,7 @@ namespace ConsanWebApp
             .cb-a.err { border-color: rgba(220, 90, 70, 0.6); color: #ffb3a6; }
             .cb-time { color: #777; font-size: 0.75rem; }
             .cb-empty { color: #888; padding: 20px 0; }
+            .cb-badge[hidden] { display: none; }
             .cb-badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-inline-start: 6px; border-radius: 999px; background: #D4AF37; color: #000; font-size: 0.75rem; line-height: 20px; text-align: center; }
             .cb-book-table td { vertical-align: top; white-space: normal; unicode-bidi: plaintext; }
             .cb-book-table select { background: #0f0f10; color: #f1f1f1; border: 1px solid #2a2a2a; border-radius: 8px; padding: 4px 8px; }
@@ -980,8 +986,7 @@ namespace ConsanWebApp
                             '<span>المحادثات: <b>' + (tt.conversations || 0) + '</b></span>' +
                             '<span>الرسائل: <b>' + (tt.messages || 0) + '</b></span>' +
                             '<span>فيها رقم هاتف: <b>' + (tt.phones || 0) + '</b></span>' +
-                            '<span>أخطاء أو حدود: <b>' + (tt.errors || 0) + '</b></span>' +
-                            '<span>الرموز (tokens): <b dir="ltr">' + (tt.tokIn || 0) + ' in / ' + (tt.tokOut || 0) + ' out</b></span>';
+                            '<span>أخطاء أو حدود: <b>' + (tt.errors || 0) + '</b></span>';
                         renderChatLogs();
                     });
                 }
