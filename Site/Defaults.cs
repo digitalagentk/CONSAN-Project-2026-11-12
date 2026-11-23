@@ -357,6 +357,9 @@ namespace ConsanWebApp
                 ["mapPinTitle"] = "کارگەی فوراتی ناوەڕاست"
             };
 
+            data.Translations["fa"] = SiteFa();
+            data.Translations["tr"] = SiteTr();
+
             return data;
         }
 

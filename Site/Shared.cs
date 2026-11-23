@@ -16,8 +16,10 @@ namespace ConsanWebApp
     public static partial class Pages
     {
         // Bump when files under wwwroot/me change so browsers fetch the new ones.
-        public const string AssetVersion = "2026-11-21.1";
+        public const string AssetVersion = "2026-11-23.1";
         public const int FoundedYear = 1945;
+        // The site's languages, in the order visitors see them. Arabic is the default; Arabic, Kurdish (Sorani) and Persian read right to left.
+        public static readonly string[] Langs = { "ar", "ku", "fa", "tr", "en" };
         public const string SiteName = "ME Workshop";
         public const string SiteNameFull = "Middle Euphrates Workshop";
 
@@ -71,7 +73,7 @@ namespace ConsanWebApp
             var merged = new Dictionary<string, Dictionary<string, string>>();
             var defaults = Store.DefaultContent().Translations;
             var stored = Store.GetContent().Translations ?? new Dictionary<string, Dictionary<string, string>>();
-            foreach (var lang in new[] { "ar", "en", "ku" })
+            foreach (var lang in Langs)
             {
                 var d = new Dictionary<string, string>();
                 if (defaults.TryGetValue(lang, out var def))
@@ -144,13 +146,15 @@ namespace ConsanWebApp
             sb.Append("<link rel=\"icon\" href=\"/me/icon.svg?v=").Append(AssetVersion).Append("\" type=\"image/svg+xml\" />\n");
             sb.Append("<link rel=\"preload\" href=\"/me/fonts/kufi-ar.woff2\" as=\"font\" type=\"font/woff2\" crossorigin />\n");
             sb.Append("<link rel=\"preload\" href=\"/me/fonts/sans-ar.woff2\" as=\"font\" type=\"font/woff2\" crossorigin />\n");
-            sb.Append("<script>(function(){var d=document.documentElement;d.classList.add('js');try{var t=localStorage.getItem('me-theme');if(t==='light')d.setAttribute('data-theme','light');var l=localStorage.getItem('me-lang');if(l==='en'||l==='ku'){d.lang=l;d.dir=l==='en'?'ltr':'rtl';d.classList.add('me-pending');setTimeout(function(){d.classList.remove('me-pending')},1200);}}catch(e){}})();</script>\n");
+            sb.Append("<script>(function(){var d=document.documentElement;d.classList.add('js');try{var t=localStorage.getItem('me-theme');if(t==='light')d.setAttribute('data-theme','light');var l=localStorage.getItem('me-lang');if(l==='en'||l==='ku'||l==='fa'||l==='tr'){d.lang=l;d.dir=(l==='en'||l==='tr')?'ltr':'rtl';d.classList.add('me-pending');setTimeout(function(){d.classList.remove('me-pending')},1200);}}catch(e){}})();</script>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"/me/site.css?v=").Append(AssetVersion).Append("\" />\n");
             if (!string.IsNullOrWhiteSpace(css))
                 sb.Append("<style>").Append(css).Append("</style>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"/me/inner.css?v=").Append(AssetVersion).Append("\" />\n");
             sb.Append("<script>window.ME_CONTENT=").Append(json).Append(";</script>\n");
             sb.Append("<script defer src=\"/me/site.js?v=").Append(AssetVersion).Append("\"></script>\n");
+            sb.Append("<link rel=\"stylesheet\" href=\"/me/chat.css?v=").Append(AssetVersion).Append("\" />\n");
+            sb.Append("<script defer src=\"/me/chat.js?v=").Append(AssetVersion).Append("\"></script>\n");
             sb.Append("</head>\n");
             sb.Append(Fill(body, ar));
             sb.Append("\n</html>");
@@ -222,8 +226,10 @@ namespace ConsanWebApp
                                     </button>
                                     <div class="lang-switch" id="langOptions" role="group" aria-label="Language">
                                         <button type="button" data-lang="ar" aria-pressed="true" onclick="switchLanguage('ar')">عربي</button>
-                                        <button type="button" data-lang="en" aria-pressed="false" onclick="switchLanguage('en')">EN</button>
                                         <button type="button" data-lang="ku" aria-pressed="false" onclick="switchLanguage('ku')">کوردی</button>
+                                        <button type="button" data-lang="fa" aria-pressed="false" onclick="switchLanguage('fa')">فارسی</button>
+                                        <button type="button" data-lang="tr" aria-pressed="false" onclick="switchLanguage('tr')">Türkçe</button>
+                                        <button type="button" data-lang="en" aria-pressed="false" onclick="switchLanguage('en')">EN</button>
                                     </div>
                                 </div>
                                 <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Light / dark">
@@ -241,7 +247,7 @@ namespace ConsanWebApp
                 <!-- Targets the inner pages' own scripts still write to. Kept out of sight. -->
                 <div id="legacySink" hidden>
                     <span id="navHome"></span><span id="navAbout"></span><span id="navServices"></span><span id="navIndustrial"></span><span id="navExplorer"></span><span id="navGuide"></span><span id="navGallery"></span>
-                    <span id="langOptAr"></span><span id="langOptEn"></span><span id="langOptKu"></span><span id="langDropdown"></span><span id="globeBtn"></span>
+                    <span id="langOptAr"></span><span id="langOptEn"></span><span id="langOptKu"></span><span id="langOptFa"></span><span id="langOptTr"></span><span id="langDropdown"></span><span id="globeBtn"></span>
                     <span id="lightIcon"></span><span id="darkIcon"></span>
                     <span id="footerText"></span><span id="footerCopy"></span><span id="footerLinkedin"></span><span id="footerFacebook"></span><span id="footerInstagram"></span>
                     <span id="contactTitle"></span><span id="contactLabel1"></span><span id="contactLabel2"></span><span id="contactLabel3"></span><span id="contactBadgeText"></span><span id="contactPopup"></span>

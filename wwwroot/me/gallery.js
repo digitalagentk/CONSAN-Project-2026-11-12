@@ -11,7 +11,7 @@
     function caption(it) {
         if (!it) return '';
         var l = lang();
-        var c = l === 'en' ? it.captionEn : (l === 'ku' ? it.captionKu : it.captionAr);
+        var c = window.ME ? window.ME.pick(it, 'caption', l) : it.captionAr;
         return c || it.captionAr || it.captionEn || it.captionKu || '';
     }
 

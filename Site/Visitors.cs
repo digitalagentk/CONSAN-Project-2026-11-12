@@ -96,7 +96,7 @@ namespace ConsanWebApp
                     Dev = Device(ua),
                     Os = Os(ua),
                     Br = Browser(ua),
-                    Lang = (lang == "en" || lang == "ku") ? lang : "ar",
+                    Lang = Array.IndexOf(Pages.Langs, lang) > 0 ? lang : "ar",
                     W = int.TryParse(w, out var wi) ? Math.Clamp(wi, 0, 10000) : 0
                 };
                 Append(rec);

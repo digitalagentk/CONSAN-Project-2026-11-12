@@ -30,6 +30,8 @@ namespace ConsanWebApp
         public string CaptionAr { get; set; } = "";
         public string CaptionEn { get; set; } = "";
         public string CaptionKu { get; set; } = "";
+        public string CaptionFa { get; set; } = "";
+        public string CaptionTr { get; set; } = "";
         public long Size { get; set; }
         public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("o");
     }
@@ -81,7 +83,7 @@ namespace ConsanWebApp
             }
         }
 
-        public static bool UpdateGalleryCaptions(string id, string ar, string en, string ku)
+        public static bool UpdateGalleryCaptions(string id, string ar, string en, string ku, string fa = "", string tr = "")
         {
             lock (GalleryLock)
             {
@@ -90,6 +92,8 @@ namespace ConsanWebApp
                 item.CaptionAr = Trim(ar, 300);
                 item.CaptionEn = Trim(en, 300);
                 item.CaptionKu = Trim(ku, 300);
+                item.CaptionFa = Trim(fa, 300);
+                item.CaptionTr = Trim(tr, 300);
                 Persist(GalleryPath, _gallery);
                 return true;
             }
@@ -253,6 +257,8 @@ namespace ConsanWebApp
                     CaptionAr = Clip(form["captionAr"]),
                     CaptionEn = Clip(form["captionEn"]),
                     CaptionKu = Clip(form["captionKu"]),
+                    CaptionFa = Clip(form["captionFa"]),
+                    CaptionTr = Clip(form["captionTr"]),
                     Size = file.Length,
                     CreatedAt = DateTime.UtcNow.ToString("o")
                 };
@@ -373,6 +379,8 @@ namespace ConsanWebApp
                     CaptionAr = Clip(form["captionAr"]),
                     CaptionEn = Clip(form["captionEn"]),
                     CaptionKu = Clip(form["captionKu"]),
+                    CaptionFa = Clip(form["captionFa"]),
+                    CaptionTr = Clip(form["captionTr"]),
                     Size = up.Bytes,
                     CreatedAt = DateTime.UtcNow.ToString("o")
                 };
@@ -393,7 +401,9 @@ namespace ConsanWebApp
                 body.TryGetValue("captionAr", out var ar);
                 body.TryGetValue("captionEn", out var en);
                 body.TryGetValue("captionKu", out var ku);
-                return Store.UpdateGalleryCaptions(id, ar ?? "", en ?? "", ku ?? "")
+                body.TryGetValue("captionFa", out var fa);
+                body.TryGetValue("captionTr", out var tr);
+                return Store.UpdateGalleryCaptions(id, ar ?? "", en ?? "", ku ?? "", fa ?? "", tr ?? "")
                     ? Results.Json(new { success = true })
                     : Results.Json(new { message = "not found" }, statusCode: 404);
             });
@@ -450,7 +460,7 @@ namespace ConsanWebApp
 
         public static object PublicView(GalleryItem g)
         {
-            return new { id = g.Id, type = g.Type, url = g.Url, captionAr = g.CaptionAr, captionEn = g.CaptionEn, captionKu = g.CaptionKu };
+            return new { id = g.Id, type = g.Type, url = g.Url, captionAr = g.CaptionAr, captionEn = g.CaptionEn, captionKu = g.CaptionKu, captionFa = g.CaptionFa, captionTr = g.CaptionTr };
         }
 
         private static string Clip(string? s)

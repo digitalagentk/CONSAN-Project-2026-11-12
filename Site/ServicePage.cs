@@ -154,26 +154,50 @@ namespace ConsanWebApp
                             doneTitle: 'داواکارییەکەت ئامادەیە', doneBody: 'ئەگەر واتساپ خۆی نەکرایەوە، دوگمەی خوارەوە دابگرە بۆ ناردنی نامەکە. کارگە بەم زووانە پەیوەندیت پێوە دەکات.', openWa: 'کردنەوەی واتساپ و ناردن', again: 'داواکاریی نوێ',
                             modelPh: 'نموونە: تۆیۆتا هایلەکس 2012', enginePh: 'نموونە: پەمپی Bosch VE، کۆمن ڕەیڵی Denso، بزوێنەری 2.5 لیتر', descPh: 'بە وردی چی ڕوودەدات؟ کەی دەستی پێکرد؟ لە کاتی ساردیدایە یان دوای گەرمبوون؟', questionsPh: 'نموونە: نرخ نزیکەی چەندە؟ چاککردنەوە چەند دەخایەنێت؟ پارچەکە هەیە؟',
                             choose: 'هەڵبژێرە…', errRequired: 'تکایە خانە پێویستەکان پڕ بکەرەوە کە بە * نیشانکراون', errPhone: 'ژمارەی مۆبایل هەڵەیە — وەک 07701234567 بینووسە', errDesc: 'تکایە کێشەکە بە لانیکەم یەک ڕستە باس بکە'
+                        },
+                        fa: {
+                            title: 'درخواست خدمت', lead: 'جزئیات زیر را پر کنید تا درخواست شما روشن و کامل به کارگاه برسد و سریع و دقیق پاسخ بگیرید. با ارسال، واتس‌اپ با پیامی آماده باز می‌شود.',
+                            secYou: 'اطلاعات شما', name: 'نام و نام خانوادگی', phone: 'شماره تلفن', gov: 'استان', when: 'بهترین زمان تماس', waSame: 'شماره واتس‌اپ همان شماره تلفن است', wa: 'شماره واتس‌اپ',
+                            secService: 'خدمت مورد نیاز', service: 'نوع خدمت', arrive: 'چگونه به کارگاه می‌آیید؟', urgency: 'میزان فوریت', urgNormal: 'عادی', urgUrgent: 'فوری — خودرو از کار افتاده',
+                            secVehicle: 'خودرو و موتور', vtype: 'نوع خودرو یا دستگاه', model: 'سازنده، مدل و سال', engine: 'نوع موتور یا پمپ (اگر می‌دانید)',
+                            secProblem: 'مشکل', symptoms: 'نشانه‌ها (همه موارد مربوط را انتخاب کنید)', desc: 'مشکل را شرح دهید', prev: 'آیا قبلاً تعمیر شده است؟',
+                            secQuestions: 'پرسش‌های شما از کارگاه', questions: 'هر پرسشی که می‌خواهید کارگاه پاسخ دهد (اختیاری)',
+                            send: 'ارسال درخواست از طریق واتس‌اپ', note: 'درخواست به ابومصطفی با شماره 0780 974 4298 فرستاده می‌شود. نسخه‌ای از آن نزد کارگاه می‌ماند.', preview: 'پیام شما این‌گونه به کارگاه می‌رسد',
+                            doneTitle: 'درخواست شما آماده است', doneBody: 'اگر واتس‌اپ خودکار باز نشد، دکمه زیر را بزنید تا پیام ارسال شود. کارگاه به‌زودی با شما تماس می‌گیرد.', openWa: 'باز کردن واتس‌اپ و ارسال', again: 'درخواست جدید',
+                            modelPh: 'مثال: تویوتا هایلوکس 2012', enginePh: 'مثال: پمپ Bosch VE، کامن ریل Denso، موتور 2.5 لیتری', descPh: 'دقیقاً چه اتفاقی می‌افتد؟ از کی شروع شد؟ در حالت سرد است یا پس از گرم شدن موتور؟', questionsPh: 'مثال: هزینه تقریبی چقدر است؟ تعمیر چقدر طول می‌کشد؟ قطعه موجود است؟',
+                            choose: 'انتخاب کنید…', errRequired: 'لطفاً فیلدهای الزامی با علامت * را کامل کنید', errPhone: 'شماره تلفن درست نیست — آن را مانند 07701234567 بنویسید', errDesc: 'لطفاً مشکل را دست‌کم در یک جمله شرح دهید'
+                        },
+                        tr: {
+                            title: 'Servis talebi', lead: 'Talebinizin atölyeye açık ve eksiksiz ulaşması, hızlı ve doğru yanıt almanız için aşağıdaki bilgileri doldurun. Gönderince WhatsApp hazır bir mesajla açılır.',
+                            secYou: 'Bilgileriniz', name: 'Ad soyad', phone: 'Telefon numarası', gov: 'İl', when: 'Size ulaşmak için en uygun zaman', waSame: 'WhatsApp numaram telefon numaramla aynı', wa: 'WhatsApp numarası',
+                            secService: 'İhtiyacınız olan hizmet', service: 'Hizmet türü', arrive: 'Atölyeye nasıl geleceksiniz?', urgency: 'Aciliyet', urgNormal: 'Normal', urgUrgent: 'Acil — araç çalışmıyor',
+                            secVehicle: 'Araç ve motor', vtype: 'Araç veya makine türü', model: 'Marka, model ve yıl', engine: 'Motor veya pompa tipi (biliyorsanız)',
+                            secProblem: 'Sorun', symptoms: 'Belirtiler (uygun olanların hepsini seçin)', desc: 'Sorunu anlatın', prev: 'Daha önce onarıldı mı?',
+                            secQuestions: 'Atölyeye sorularınız', questions: 'Atölyenin yanıtlamasını istediğiniz herhangi bir soru (isteğe bağlı)',
+                            send: 'Talebi WhatsApp ile gönder', note: 'Talep 0780 974 4298 numarasından Ebu Mustafa\'ya gider. Bir kopyası atölyede saklanır.', preview: 'Mesajınız atölyeye böyle ulaşacak',
+                            doneTitle: 'Talebiniz hazır', doneBody: 'WhatsApp kendiliğinden açılmadıysa mesajı göndermek için aşağıdaki düğmeye basın. Atölye kısa süre içinde size dönecek.', openWa: 'WhatsApp\'ı aç ve gönder', again: 'Yeni talep',
+                            modelPh: 'ör. Toyota Hilux 2012', enginePh: 'ör. Bosch VE pompa, Denso common rail, 2.5 L motor', descPh: 'Tam olarak ne oluyor? Ne zaman başladı? Motor soğukken mi, ısındıktan sonra mı?', questionsPh: 'ör. Yaklaşık ne kadar tutar? Ne kadar sürer? Parça mevcut mu?',
+                            choose: 'Seçin…', errRequired: 'Lütfen * ile işaretli zorunlu alanları doldurun', errPhone: 'Telefon numarası hatalı görünüyor — 07701234567 şeklinde yazın', errDesc: 'Lütfen sorunu en az bir cümleyle anlatın'
                         }
                     };
-                    // Options: [value written into the Arabic message, English label, Kurdish label]
+                    // Options: [value written into the Arabic message, English, Kurdish, Persian, Turkish label]
                     var O = {
-                        fGov: [['بغداد','Baghdad','بەغدا'],['البصرة','Basra','بەسرە'],['نينوى','Nineveh','نەینەوا'],['أربيل','Erbil','هەولێر'],['النجف','Najaf','نەجەف'],['كربلاء','Karbala','کەربەلا'],['بابل','Babylon','بابل'],['الأنبار','Anbar','ئەنبار'],['ديالى','Diyala','دیالە'],['ذي قار','Dhi Qar','زیقار'],['القادسية','Al-Qadisiyah','قادسیە'],['المثنى','Muthanna','موسەننا'],['ميسان','Maysan','مەیسان'],['واسط','Wasit','واسیت'],['صلاح الدين','Salah al-Din','سەلاحەدین'],['كركوك','Kirkuk','کەرکووک'],['دهوك','Duhok','دهۆک'],['السليمانية','Sulaymaniyah','سلێمانی'],['حلبجة','Halabja','هەڵەبجە'],['خارج العراق','Outside Iraq','دەرەوەی عێراق']],
-                        fWhen: [['أي وقت','Any time','هەر کاتێک'],['صباحاً','Morning','بەیانی'],['ظهراً','Afternoon','نیوەڕۆ'],['مساءً','Evening','ئێوارە']],
-                        fService: [['تصليح بمبة (مضخة) ديزل','Diesel pump repair','چاککردنەوەی پەمپی دیزڵ'],['تصليح أو تنظيف النوزلات والحاقنات','Nozzle / injector repair or cleaning','چاککردنەوە یان پاککردنەوەی نۆزڵ و ئینجێکتەر'],['كومن ريل (بمبة أو حاقنات)','Common rail (pump or injectors)','کۆمن ڕەیڵ (پەمپ یان ئینجێکتەر)'],['فحص ومعايرة على طاولة الفحص','Bench test and calibration','پشکنین و ڕێکخستن لەسەر مێزی پشکنین'],['فحص إلكتروني للأعطال','Electronic fault diagnosis','پشکنینی ئەلیکترۆنی'],['شراء بمبة أو نوزلات أو قطع','Buying a pump, nozzles or parts','کڕینی پەمپ، نۆزڵ یان پارچە'],['خدمة أخرى','Something else','خزمەتگوزارییەکی تر']],
-                        fArrive: [['سأجلب المركبة إلى الورشة','I will bring the vehicle','ئۆتۆمبێلەکە دەهێنم'],['سأجلب البمبة أو النوزلات فقط','I will bring only the pump or nozzles','تەنها پەمپ یان نۆزڵەکان دەهێنم'],['أحتاج استشارة قبل الحضور','I need advice before coming','پێش هاتن ڕاوێژم پێویستە'],['لم أقرر بعد','Not decided yet','هێشتا بڕیارم نەداوە']],
-                        fVType: [['سيارة صالون أو بيك أب','Car or pickup','ئۆتۆمبێلی سواری یان پیکاپ'],['شاحنة (لوري)','Truck','بارهەڵگر'],['باص','Bus','پاس'],['جرار أو آلة زراعية','Tractor / farm machine','تراکتۆر / ئامێری کشتوکاڵ'],['مولّدة كهرباء','Generator','مۆلیدە'],['آلية إنشائية ثقيلة','Heavy construction machine','ئامێری قورسی بیناسازی'],['زورق أو محرك بحري','Boat / marine engine','بەلەم / بزوێنەری دەریایی'],['أخرى','Other','هی تر']],
-                        fPrev: [['لا، أول مرة','No, first time','نەخێر، یەکەمجارە'],['نعم، في ورشة أخرى','Yes, at another workshop','بەڵێ، لە کارگەیەکی تر'],['نعم، في ورشتكم سابقاً','Yes, at your workshop before','بەڵێ، پێشتر لە کارگەی ئێوە']]
+                        fGov: [['بغداد','Baghdad','بەغدا', 'بغداد', 'Bağdat'],['البصرة','Basra','بەسرە', 'بصره', 'Basra'],['نينوى','Nineveh','نەینەوا', 'نینوا', 'Ninova'],['أربيل','Erbil','هەولێر', 'اربیل', 'Erbil'],['النجف','Najaf','نەجەف', 'نجف', 'Necef'],['كربلاء','Karbala','کەربەلا', 'کربلا', 'Kerbela'],['بابل','Babylon','بابل', 'بابل', 'Babil'],['الأنبار','Anbar','ئەنبار', 'انبار', 'Anbar'],['ديالى','Diyala','دیالە', 'دیاله', 'Diyala'],['ذي قار','Dhi Qar','زیقار', 'ذی‌قار', 'Zikar'],['القادسية','Al-Qadisiyah','قادسیە', 'قادسیه', 'Kadisiye'],['المثنى','Muthanna','موسەننا', 'مثنی', 'Müsenna'],['ميسان','Maysan','مەیسان', 'میسان', 'Meysan'],['واسط','Wasit','واسیت', 'واسط', 'Vasıt'],['صلاح الدين','Salah al-Din','سەلاحەدین', 'صلاح‌الدین', 'Selahaddin'],['كركوك','Kirkuk','کەرکووک', 'کرکوک', 'Kerkük'],['دهوك','Duhok','دهۆک', 'دهوک', 'Duhok'],['السليمانية','Sulaymaniyah','سلێمانی', 'سلیمانیه', 'Süleymaniye'],['حلبجة','Halabja','هەڵەبجە', 'حلبچه', 'Halepçe'],['خارج العراق','Outside Iraq','دەرەوەی عێراق', 'خارج از عراق', 'Irak dışı']],
+                        fWhen: [['أي وقت','Any time','هەر کاتێک', 'هر زمان', 'Herhangi bir saat'],['صباحاً','Morning','بەیانی', 'صبح', 'Sabah'],['ظهراً','Afternoon','نیوەڕۆ', 'ظهر', 'Öğleden sonra'],['مساءً','Evening','ئێوارە', 'عصر', 'Akşam']],
+                        fService: [['تصليح بمبة (مضخة) ديزل','Diesel pump repair','چاککردنەوەی پەمپی دیزڵ', 'تعمیر پمپ دیزل', 'Dizel pompa onarımı'],['تصليح أو تنظيف النوزلات والحاقنات','Nozzle / injector repair or cleaning','چاککردنەوە یان پاککردنەوەی نۆزڵ و ئینجێکتەر', 'تعمیر یا تمیز کردن سوزن و انژکتور', 'Enjektör / meme onarımı veya temizliği'],['كومن ريل (بمبة أو حاقنات)','Common rail (pump or injectors)','کۆمن ڕەیڵ (پەمپ یان ئینجێکتەر)', 'کامن ریل (پمپ یا انژکتور)', 'Common rail (pompa veya enjektör)'],['فحص ومعايرة على طاولة الفحص','Bench test and calibration','پشکنین و ڕێکخستن لەسەر مێزی پشکنین', 'تست و کالیبراسیون روی میز تست', 'Tezgâhta test ve kalibrasyon'],['فحص إلكتروني للأعطال','Electronic fault diagnosis','پشکنینی ئەلیکترۆنی', 'عیب‌یابی الکترونیکی', 'Elektronik arıza tespiti'],['شراء بمبة أو نوزلات أو قطع','Buying a pump, nozzles or parts','کڕینی پەمپ، نۆزڵ یان پارچە', 'خرید پمپ، سوزن یا قطعه', 'Pompa, enjektör veya parça satın alma'],['خدمة أخرى','Something else','خزمەتگوزارییەکی تر', 'خدمت دیگر', 'Başka bir şey']],
+                        fArrive: [['سأجلب المركبة إلى الورشة','I will bring the vehicle','ئۆتۆمبێلەکە دەهێنم', 'خودرو را می‌آورم', 'Aracı getireceğim'],['سأجلب البمبة أو النوزلات فقط','I will bring only the pump or nozzles','تەنها پەمپ یان نۆزڵەکان دەهێنم', 'فقط پمپ یا سوزن‌ها را می‌آورم', 'Sadece pompayı veya enjektörleri getireceğim'],['أحتاج استشارة قبل الحضور','I need advice before coming','پێش هاتن ڕاوێژم پێویستە', 'پیش از آمدن مشاوره می‌خواهم', 'Gelmeden önce danışmak istiyorum'],['لم أقرر بعد','Not decided yet','هێشتا بڕیارم نەداوە', 'هنوز تصمیم نگرفته‌ام', 'Henüz karar vermedim']],
+                        fVType: [['سيارة صالون أو بيك أب','Car or pickup','ئۆتۆمبێلی سواری یان پیکاپ', 'سواری یا وانت', 'Otomobil veya kamyonet'],['شاحنة (لوري)','Truck','بارهەڵگر', 'کامیون', 'Kamyon'],['باص','Bus','پاس', 'اتوبوس', 'Otobüs'],['جرار أو آلة زراعية','Tractor / farm machine','تراکتۆر / ئامێری کشتوکاڵ', 'تراکتور / ماشین کشاورزی', 'Traktör / tarım makinesi'],['مولّدة كهرباء','Generator','مۆلیدە', 'ژنراتور', 'Jeneratör'],['آلية إنشائية ثقيلة','Heavy construction machine','ئامێری قورسی بیناسازی', 'ماشین‌آلات سنگین راهسازی', 'Ağır iş makinesi'],['زورق أو محرك بحري','Boat / marine engine','بەلەم / بزوێنەری دەریایی', 'قایق / موتور دریایی', 'Tekne / deniz motoru'],['أخرى','Other','هی تر', 'سایر', 'Diğer']],
+                        fPrev: [['لا، أول مرة','No, first time','نەخێر، یەکەمجارە', 'نه، بار اول است', 'Hayır, ilk kez'],['نعم، في ورشة أخرى','Yes, at another workshop','بەڵێ، لە کارگەیەکی تر', 'بله، در کارگاه دیگری', 'Evet, başka bir atölyede'],['نعم، في ورشتكم سابقاً','Yes, at your workshop before','بەڵێ، پێشتر لە کارگەی ئێوە', 'بله، قبلاً در کارگاه شما', 'Evet, daha önce sizin atölyenizde']]
                     };
-                    var SYM = [['صعوبة في التشغيل','Hard starting','قورس دەکەوێتە کار'],['دخان أسود','Black smoke','دووکەڵی ڕەش'],['دخان أبيض','White smoke','دووکەڵی سپی'],['ضعف في العزم','Loss of power','لاوازیی هێز'],['استهلاك وقود عالٍ','High fuel use','بەکارهێنانی زۆری سووتەمەنی'],['طقطقة أو صوت غير طبيعي','Knocking or odd noise','دەنگی نائاسایی'],['تسريب وقود','Fuel leak','دزەکردنی سووتەمەنی'],['ينطفئ المحرك أثناء العمل','Engine cuts out','بزوێنەر دەکوژێتەوە'],['تقطيع عند التسارع','Hesitation when accelerating','پچڕپچڕ لە کاتی خێراکردن'],['لمبة المحرك مضاءة','Check-engine light on','گڵۆپی بزوێنەر داگیرساوە']];
+                    var SYM = [['صعوبة في التشغيل','Hard starting','قورس دەکەوێتە کار', 'سخت روشن شدن', 'Zor çalışma'],['دخان أسود','Black smoke','دووکەڵی ڕەش', 'دود سیاه', 'Siyah duman'],['دخان أبيض','White smoke','دووکەڵی سپی', 'دود سفید', 'Beyaz duman'],['ضعف في العزم','Loss of power','لاوازیی هێز', 'افت قدرت', 'Güç kaybı'],['استهلاك وقود عالٍ','High fuel use','بەکارهێنانی زۆری سووتەمەنی', 'مصرف سوخت بالا', 'Yüksek yakıt tüketimi'],['طقطقة أو صوت غير طبيعي','Knocking or odd noise','دەنگی نائاسایی', 'تق‌تق یا صدای غیرعادی', 'Vuruntu veya garip ses'],['تسريب وقود','Fuel leak','دزەکردنی سووتەمەنی', 'نشت سوخت', 'Yakıt kaçağı'],['ينطفئ المحرك أثناء العمل','Engine cuts out','بزوێنەر دەکوژێتەوە', 'موتور حین کار خاموش می‌شود', 'Motor çalışırken stop ediyor'],['تقطيع عند التسارع','Hesitation when accelerating','پچڕپچڕ لە کاتی خێراکردن', 'ریپ زدن هنگام گاز دادن', 'Gaz verirken tekleme'],['لمبة المحرك مضاءة','Check-engine light on','گڵۆپی بزوێنەر داگیرساوە', 'چراغ چک موتور روشن است', 'Motor arıza lambası yanıyor']];
 
                     var $ = function (id) { return document.getElementById(id); };
                     var form = $('svcForm');
                     function lang() { return (window.ME && window.ME.lang) || 'ar'; }
-                    function idx() { var l = lang(); return l === 'en' ? 1 : (l === 'ku' ? 2 : 0); }
+                    function idx() { return { en: 1, ku: 2, fa: 3, tr: 4 }[lang()] || 0; }
 
                     function fillSelects() {
-                        var t = S[lang()];
+                        var t = S[lang()] || S.ar;
                         Object.keys(O).forEach(function (id) {
                             var sel = $(id), keep = sel.value;
                             sel.innerHTML = '';
@@ -202,7 +226,7 @@ namespace ConsanWebApp
                         });
                     }
                     function paint() {
-                        var t = S[lang()];
+                        var t = S[lang()] || S.ar;
                         document.querySelectorAll('[data-s]').forEach(function (el) { if (t[el.getAttribute('data-s')]) el.textContent = t[el.getAttribute('data-s')]; });
                         document.querySelectorAll('[data-ph]').forEach(function (el) { el.placeholder = t[el.getAttribute('data-ph')]; });
                         fillSelects(); fillChips(); preview();
@@ -277,7 +301,7 @@ namespace ConsanWebApp
 
                     form.addEventListener('submit', function (e) {
                         e.preventDefault();
-                        var t = S[lang()];
+                        var t = S[lang()] || S.ar;
                         var req = ['fName', 'fPhone', 'fGov', 'fService', 'fArrive', 'fVType', 'fModel', 'fDesc'];
                         for (var i = 0; i < req.length; i++) { if (!val(req[i])) return fail(t.errRequired, $(req[i])); }
                         if (!validPhone(val('fPhone'))) return fail(t.errPhone, $('fPhone'));

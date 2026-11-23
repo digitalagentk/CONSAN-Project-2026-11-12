@@ -185,6 +185,7 @@ namespace ConsanWebApp
             GalleryFeature.MapGallery(app);
             BillingFeature.MapBilling(app);
             VisitorFeature.MapVisitors(app);
+            ChatbotFeature.MapChatbot(app);
 
             // Anything else falls back to the home page
             app.MapFallback(() => Results.Content(Pages.GetHomePage(), "text/html; charset=utf-8"));
@@ -192,7 +193,7 @@ namespace ConsanWebApp
             // =========================================================
             // ==================  PUBLIC CONTENT APIs  ===================
             // =========================================================
-            app.MapGet("/api/content", () => Results.Json(Store.GetContent()));
+            app.MapGet("/api/content", () => Results.Json(new SiteContentData { Translations = Pages.Translations(), HeroImages = Store.GetContent().HeroImages }));
             app.MapGet("/api/industrial-content", () => Results.Json(Store.GetIndustrialContent()));
 
             // =========================================================
@@ -665,9 +666,13 @@ namespace ConsanWebApp
         public string NameAr { get; set; } = "";
         public string NameEn { get; set; } = "";
         public string NameKu { get; set; } = "";
+        public string NameFa { get; set; } = "";
+        public string NameTr { get; set; } = "";
         public string AddressAr { get; set; } = "";
         public string AddressEn { get; set; } = "";
         public string AddressKu { get; set; } = "";
+        public string AddressFa { get; set; } = "";
+        public string AddressTr { get; set; } = "";
         public string Phone { get; set; } = "";
         public double Latitude { get; set; }
         public double Longitude { get; set; }
@@ -685,6 +690,8 @@ namespace ConsanWebApp
         public string CaptionAr { get; set; } = "";
         public string CaptionEn { get; set; } = "";
         public string CaptionKu { get; set; } = "";
+        public string CaptionFa { get; set; } = "";
+        public string CaptionTr { get; set; } = "";
         public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("o");
     }
 
@@ -696,9 +703,13 @@ namespace ConsanWebApp
         public string TitleAr { get; set; } = "";
         public string TitleEn { get; set; } = "";
         public string TitleKu { get; set; } = "";
+        public string TitleFa { get; set; } = "";
+        public string TitleTr { get; set; } = "";
         public string DescAr { get; set; } = "";
         public string DescEn { get; set; } = "";
         public string DescKu { get; set; } = "";
+        public string DescFa { get; set; } = "";
+        public string DescTr { get; set; } = "";
         public string Tags { get; set; } = "";
         public string Link { get; set; } = "/guide";
         public int SortOrder { get; set; } = 0;
@@ -718,9 +729,13 @@ namespace ConsanWebApp
         public string TitleAr { get; set; } = "";
         public string TitleEn { get; set; } = "";
         public string TitleKu { get; set; } = "";
+        public string TitleFa { get; set; } = "";
+        public string TitleTr { get; set; } = "";
         public string BodyAr { get; set; } = "";
         public string BodyEn { get; set; } = "";
         public string BodyKu { get; set; } = "";
+        public string BodyFa { get; set; } = "";
+        public string BodyTr { get; set; } = "";
         public string Icon { get; set; } = "📘";
         public int SortOrder { get; set; } = 0;
     }
@@ -731,12 +746,18 @@ namespace ConsanWebApp
         public string NameAr { get; set; } = "";
         public string NameEn { get; set; } = "";
         public string NameKu { get; set; } = "";
+        public string NameFa { get; set; } = "";
+        public string NameTr { get; set; } = "";
         public string SpecAr { get; set; } = "";
         public string SpecEn { get; set; } = "";
         public string SpecKu { get; set; } = "";
+        public string SpecFa { get; set; } = "";
+        public string SpecTr { get; set; } = "";
         public string UseAr { get; set; } = "";
         public string UseEn { get; set; } = "";
         public string UseKu { get; set; } = "";
+        public string UseFa { get; set; } = "";
+        public string UseTr { get; set; } = "";
         public int SortOrder { get; set; } = 0;
     }
 
@@ -808,6 +829,7 @@ namespace ConsanWebApp
             _guideContent = LoadOrDefault(GuideContentPath, DefaultGuideContent);
 
             UpgradeLegacyData();
+            EnsureFaTr();
         }
 
         // Loads a data file. If it can't be read, the last good copy (.bak) is used instead,
@@ -1130,6 +1152,7 @@ namespace ConsanWebApp
                 IsWorkshop = true,
                 SubmittedAt = DateTime.UtcNow.ToString("o")
             });
+            AddFaTr(_mapPins[_mapPins.Count - 1]);
             Persist(MapPinsPath, _mapPins);
         }
 
@@ -1147,8 +1170,8 @@ namespace ConsanWebApp
             pin.NameAr = (pin.NameAr ?? "").Trim();
             if (pin.NameAr.Length == 0 && !string.IsNullOrWhiteSpace(pin.NameEn)) pin.NameAr = pin.NameEn.Trim();
             if (pin.NameAr.Length == 0) return "اسم الموقع مطلوب";
-            if (pin.NameAr.Length > 80 || (pin.NameEn ?? "").Length > 80 || (pin.NameKu ?? "").Length > 80) return "الاسم طويل جداً";
-            if ((pin.AddressAr ?? "").Length > 200 || (pin.AddressEn ?? "").Length > 200 || (pin.AddressKu ?? "").Length > 200) return "العنوان طويل جداً";
+            if (pin.NameAr.Length > 80 || (pin.NameEn ?? "").Length > 80 || (pin.NameKu ?? "").Length > 80 || (pin.NameFa ?? "").Length > 80 || (pin.NameTr ?? "").Length > 80) return "الاسم طويل جداً";
+            if ((pin.AddressAr ?? "").Length > 200 || (pin.AddressEn ?? "").Length > 200 || (pin.AddressKu ?? "").Length > 200 || (pin.AddressFa ?? "").Length > 200 || (pin.AddressTr ?? "").Length > 200) return "العنوان طويل جداً";
             if ((pin.Phone ?? "").Length > 20) return "رقم الهاتف غير صحيح";
             if ((pin.MapEmbedUrl ?? "").Length > 500) return "الرابط طويل جداً";
             if (double.IsNaN(pin.Latitude) || double.IsNaN(pin.Longitude) || pin.Latitude < 29 || pin.Latitude > 38 || pin.Longitude < 38 || pin.Longitude > 49)
@@ -1208,9 +1231,13 @@ namespace ConsanWebApp
                 pin.NameAr = pin.NameAr ?? "";
                 pin.NameEn = pin.NameEn ?? "";
                 pin.NameKu = pin.NameKu ?? "";
+                pin.NameFa = pin.NameFa ?? "";
+                pin.NameTr = pin.NameTr ?? "";
                 pin.AddressAr = pin.AddressAr ?? "";
                 pin.AddressEn = pin.AddressEn ?? "";
                 pin.AddressKu = pin.AddressKu ?? "";
+                pin.AddressFa = pin.AddressFa ?? "";
+                pin.AddressTr = pin.AddressTr ?? "";
                 pin.Phone = pin.Phone ?? "";
                 pin.MapEmbedUrl = pin.MapEmbedUrl ?? "";
                 if (string.IsNullOrEmpty(pin.SubmittedAt)) pin.SubmittedAt = DateTime.UtcNow.ToString("o");
@@ -1230,9 +1257,13 @@ namespace ConsanWebApp
                 existing.NameAr = updated.NameAr ?? "";
                 existing.NameEn = updated.NameEn ?? "";
                 existing.NameKu = updated.NameKu ?? "";
+                existing.NameFa = updated.NameFa ?? "";
+                existing.NameTr = updated.NameTr ?? "";
                 existing.AddressAr = updated.AddressAr ?? "";
                 existing.AddressEn = updated.AddressEn ?? "";
                 existing.AddressKu = updated.AddressKu ?? "";
+                existing.AddressFa = updated.AddressFa ?? "";
+                existing.AddressTr = updated.AddressTr ?? "";
                 existing.Phone = updated.Phone ?? "";
                 existing.Latitude = updated.Latitude;
                 existing.Longitude = updated.Longitude;
@@ -1288,6 +1319,8 @@ namespace ConsanWebApp
                 item.CaptionAr = item.CaptionAr ?? "";
                 item.CaptionEn = item.CaptionEn ?? "";
                 item.CaptionKu = item.CaptionKu ?? "";
+                item.CaptionFa = item.CaptionFa ?? "";
+                item.CaptionTr = item.CaptionTr ?? "";
                 item.CreatedAt = DateTime.UtcNow.ToString("o");
                 _archival.Add(item);
                 Persist(ArchivalPath, _archival);
@@ -1306,6 +1339,8 @@ namespace ConsanWebApp
                 existing.CaptionAr = updated.CaptionAr ?? "";
                 existing.CaptionEn = updated.CaptionEn ?? "";
                 existing.CaptionKu = updated.CaptionKu ?? "";
+                existing.CaptionFa = updated.CaptionFa ?? "";
+                existing.CaptionTr = updated.CaptionTr ?? "";
                 Persist(ArchivalPath, _archival);
                 return true;
             }
@@ -1356,9 +1391,13 @@ namespace ConsanWebApp
                 existing.TitleAr = updated.TitleAr;
                 existing.TitleEn = updated.TitleEn;
                 existing.TitleKu = updated.TitleKu;
+                existing.TitleFa = updated.TitleFa;
+                existing.TitleTr = updated.TitleTr;
                 existing.DescAr = updated.DescAr;
                 existing.DescEn = updated.DescEn;
                 existing.DescKu = updated.DescKu;
+                existing.DescFa = updated.DescFa;
+                existing.DescTr = updated.DescTr;
                 existing.Tags = updated.Tags;
                 existing.Link = updated.Link;
                 existing.SortOrder = updated.SortOrder;
@@ -1979,9 +2018,9 @@ namespace ConsanWebApp
                     grid.innerHTML = '';
                     explorerCards.forEach(function(card) {
                         var title = currentLang === 'en' ? (card.titleEn || card.titleAr) :
-                                    currentLang === 'ku' ? (card.titleKu || card.titleAr) : (card.titleAr || card.titleEn);
+                                    currentLang === 'ku' ? (card.titleKu || card.titleAr) : currentLang === 'fa' ? (card.titleFa || card.titleAr || card.titleEn) : currentLang === 'tr' ? (card.titleTr || card.titleEn || card.titleAr) : (card.titleAr || card.titleEn);
                         var desc = currentLang === 'en' ? (card.descEn || card.descAr) :
-                                   currentLang === 'ku' ? (card.descKu || card.descAr) : (card.descAr || card.descEn);
+                                   currentLang === 'ku' ? (card.descKu || card.descAr) : currentLang === 'fa' ? (card.descFa || card.descAr || card.descEn) : currentLang === 'tr' ? (card.descTr || card.descEn || card.descAr) : (card.descAr || card.descEn);
                         var tags = (card.tags || '').split(',').map(function(t) { return t.trim(); }).filter(function(t) { return t; });
                         var tagsHtml = tags.map(function(t) { return '<span class="explorer-tag">' + escapeHtml(t) + '</span>'; }).join('');
 
@@ -1996,7 +2035,7 @@ namespace ConsanWebApp
                                 '<h3>' + escapeHtml(title || '') + '</h3>' +
                                 '<p>' + escapeHtml(desc || '') + '</p>' +
                                 '<div class="explorer-card-tags">' + tagsHtml + '</div>' +
-                                '<a href="' + escapeHtml(card.link || '/guide') + '" class="explorer-card-link">' + (currentLang === 'en' ? 'Learn More →' : currentLang === 'ku' ? 'زیاتر بزانە →' : 'تعرف على المواصفات ←') + '</a>' +
+                                '<a href="' + escapeHtml(card.link || '/guide') + '" class="explorer-card-link">' + (currentLang === 'en' ? 'Learn More →' : currentLang === 'ku' ? 'زیاتر بزانە →' : (translations[currentLang] && translations[currentLang].learnMore) || 'تعرف على المواصفات ←') + '</a>' +
                             '</div>';
                         grid.appendChild(div);
                     });
@@ -2022,6 +2061,7 @@ namespace ConsanWebApp
                         contactTitle:'ژمارەکانی پەیوەندی', contactLabel1:'ئەبوو مستەفا', contactLabel2:'ئەبوو ڕەزا', contactLabel3:'ئەبوو عەلی', contactBadgeText:'پەیوەندیمان پێوەبکە'
                     }
                 };
+                {{FaTrScript("explorer")}}
 
                 function switchLanguage(lang) {
                     currentLang = lang;
@@ -2031,8 +2071,8 @@ namespace ConsanWebApp
                     document.getElementById('langDropdown').classList.add('closed');
                     document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
                     document.documentElement.lang = lang;
-                    document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
-                    var t = translations[lang];
+                    document.documentElement.dir = (lang === 'en' || lang === 'tr') ? 'ltr' : 'rtl';
+                    var t = translations[lang] || translations.ar;
                     document.getElementById('navHome').textContent = t.navHome;
                     document.getElementById('navAbout').textContent = t.navAbout;
                     document.getElementById('navServices').textContent = t.navServices;
@@ -2335,7 +2375,7 @@ namespace ConsanWebApp
                 <script>
                 document.addEventListener('DOMContentLoaded', function() {
                 var currentLang = 'ar';
-                var guideData = { translations: { ar: {}, en: {}, ku: {} }, topics: [], equipment: [] };
+                var guideData = { translations: { ar: {}, en: {}, ku: {}, fa: {}, tr: {} }, topics: [], equipment: [] };
 
                 {{GetCoreNavScript()}}
                 {{GetContactWidgetScript()}}
@@ -2353,9 +2393,9 @@ namespace ConsanWebApp
                     container.innerHTML = '';
                     (guideData.topics || []).forEach(function(topic) {
                         var title = currentLang === 'en' ? (topic.titleEn || topic.titleAr) :
-                                    currentLang === 'ku' ? (topic.titleKu || topic.titleAr) : (topic.titleAr || topic.titleEn);
+                                    currentLang === 'ku' ? (topic.titleKu || topic.titleAr) : currentLang === 'fa' ? (topic.titleFa || topic.titleAr || topic.titleEn) : currentLang === 'tr' ? (topic.titleTr || topic.titleEn || topic.titleAr) : (topic.titleAr || topic.titleEn);
                         var body = currentLang === 'en' ? (topic.bodyEn || topic.bodyAr) :
-                                   currentLang === 'ku' ? (topic.bodyKu || topic.bodyAr) : (topic.bodyAr || topic.bodyEn);
+                                   currentLang === 'ku' ? (topic.bodyKu || topic.bodyAr) : currentLang === 'fa' ? (topic.bodyFa || topic.bodyAr || topic.bodyEn) : currentLang === 'tr' ? (topic.bodyTr || topic.bodyEn || topic.bodyAr) : (topic.bodyAr || topic.bodyEn);
                         var div = document.createElement('div');
                         div.className = 'guide-block';
                         div.innerHTML =
@@ -2371,11 +2411,11 @@ namespace ConsanWebApp
                     body.innerHTML = '';
                     (guideData.equipment || []).forEach(function(eq) {
                         var name = currentLang === 'en' ? (eq.nameEn || eq.nameAr) :
-                                   currentLang === 'ku' ? (eq.nameKu || eq.nameAr) : (eq.nameAr || eq.nameEn);
+                                   currentLang === 'ku' ? (eq.nameKu || eq.nameAr) : currentLang === 'fa' ? (eq.nameFa || eq.nameAr || eq.nameEn) : currentLang === 'tr' ? (eq.nameTr || eq.nameEn || eq.nameAr) : (eq.nameAr || eq.nameEn);
                         var spec = currentLang === 'en' ? (eq.specEn || eq.specAr) :
-                                   currentLang === 'ku' ? (eq.specKu || eq.specAr) : (eq.specAr || eq.specEn);
+                                   currentLang === 'ku' ? (eq.specKu || eq.specAr) : currentLang === 'fa' ? (eq.specFa || eq.specAr || eq.specEn) : currentLang === 'tr' ? (eq.specTr || eq.specEn || eq.specAr) : (eq.specAr || eq.specEn);
                         var use = currentLang === 'en' ? (eq.useEn || eq.useAr) :
-                                  currentLang === 'ku' ? (eq.useKu || eq.useAr) : (eq.useAr || eq.useEn);
+                                  currentLang === 'ku' ? (eq.useKu || eq.useAr) : currentLang === 'fa' ? (eq.useFa || eq.useAr || eq.useEn) : currentLang === 'tr' ? (eq.useTr || eq.useEn || eq.useAr) : (eq.useAr || eq.useEn);
                         var tr = document.createElement('tr');
                         tr.innerHTML =
                             '<td>' + escapeHtml(name || '') + '</td>' +
@@ -2411,11 +2451,12 @@ namespace ConsanWebApp
                         contactTitle:'ژمارەکانی پەیوەندی', contactLabel1:'ئەبوو مستەفا', contactLabel2:'ئەبوو ڕەزا', contactLabel3:'ئەبوو عەلی', contactBadgeText:'پەیوەندیمان پێوەبکە'
                     }
                 };
+                {{FaTrScript("guide")}}
 
                 function applyGuideTranslations() {
                     // Merge server translations over defaults
                     if (guideData.translations) {
-                        ['ar','en','ku'].forEach(function(l) {
+                        ['ar', 'en', 'ku', 'fa', 'tr'].forEach(function(l) {
                             if (guideData.translations[l]) Object.assign(translations[l], guideData.translations[l]);
                         });
                     }
@@ -2429,8 +2470,8 @@ namespace ConsanWebApp
                     document.getElementById('langDropdown').classList.add('closed');
                     document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
                     document.documentElement.lang = lang;
-                    document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
-                    var t = translations[lang];
+                    document.documentElement.dir = (lang === 'en' || lang === 'tr') ? 'ltr' : 'rtl';
+                    var t = translations[lang] || translations.ar;
                     document.getElementById('navHome').textContent = t.navHome;
                     document.getElementById('navAbout').textContent = t.navAbout;
                     document.getElementById('navServices').textContent = t.navServices;
@@ -2572,6 +2613,7 @@ namespace ConsanWebApp
                         backHomeLink:'← گەڕانەوە بۆ ماڵەوە',
                         demoAlertSignin:'بە سەرکەوتوویی چوویتەژوورەوە', demoAlertRegister:'هەژمار بە سەرکەوتوویی دروستکرا', mismatch:'وشەی نهێنی وەک یەک نییە' }
                 };
+                {{FaTrScript("login")}}
 
                 function switchTab(tab) {
                     currentTab = tab;
@@ -2630,9 +2672,9 @@ namespace ConsanWebApp
                     document.getElementById('langDropdown').classList.add('closed');
                     document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
                     document.documentElement.lang = lang;
-                    document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
+                    document.documentElement.dir = (lang === 'en' || lang === 'tr') ? 'ltr' : 'rtl';
 
-                    var t = translations[lang];
+                    var t = translations[lang] || translations.ar;
                     document.getElementById('navHome').textContent = t.navHome;
                     document.getElementById('navAbout').textContent = t.navAbout;
                     document.getElementById('navServices').textContent = t.navServices;
@@ -3085,6 +3127,7 @@ namespace ConsanWebApp
                         submitSuccess:'شوێنەکەت بە سەرکەوتوویی نێردرا و دوای پەسندکردنی بەڕێوەبەرایەتی لە خشتە و نەخشەکەدا دەردەکەوێت.'
                     }
                 };
+                {{FaTrScript("industrial")}}
 
                 // ---- Google Maps Layers ----
                 function createGoogleLayer(layerType, label) {
@@ -3148,12 +3191,16 @@ namespace ConsanWebApp
                 function pinDisplayName(pin) {
                     if (currentLang === 'en') return pin.nameEn || pin.nameAr || '';
                     if (currentLang === 'ku') return pin.nameKu || pin.nameAr || '';
+                    if (currentLang === 'fa') return pin.nameFa || pin.nameAr || pin.nameEn || '';
+                    if (currentLang === 'tr') return pin.nameTr || pin.nameEn || pin.nameAr || '';
                     return pin.nameAr || pin.nameEn || '';
                 }
 
                 function pinDisplayAddress(pin) {
                     if (currentLang === 'en') return pin.addressEn || pin.addressAr || '';
                     if (currentLang === 'ku') return pin.addressKu || pin.addressAr || '';
+                    if (currentLang === 'fa') return pin.addressFa || pin.addressAr || pin.addressEn || '';
+                    if (currentLang === 'tr') return pin.addressTr || pin.addressEn || pin.addressAr || '';
                     return pin.addressAr || pin.addressEn || '';
                 }
 
@@ -3216,7 +3263,7 @@ namespace ConsanWebApp
                             tr.classList.add('ws-row');
                             var tag = document.createElement('span');
                             tag.className = 'ws-tag';
-                            tag.textContent = currentLang === 'en' ? 'Workshop' : (currentLang === 'ku' ? 'کارگە' : 'الورشة');
+                            tag.textContent = currentLang === 'en' ? 'Workshop' : (currentLang === 'ku' ? 'کارگە' : ((translations[currentLang] && translations[currentLang].workshopTag) || 'الورشة'));
                             tdName.prepend(tag);
                         }
                         tr.appendChild(tdName);
@@ -3365,9 +3412,9 @@ namespace ConsanWebApp
                     document.getElementById('langDropdown').classList.add('closed');
                     document.getElementById('globeBtn').setAttribute('aria-expanded', 'false');
                     document.documentElement.lang = lang;
-                    document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
+                    document.documentElement.dir = (lang === 'en' || lang === 'tr') ? 'ltr' : 'rtl';
 
-                    var t = translations[lang];
+                    var t = translations[lang] || translations.ar;
                     document.getElementById('navHome').textContent = t.navHome;
                     document.getElementById('navAbout').textContent = t.navAbout;
                     document.getElementById('navServices').textContent = t.navServices;
@@ -3477,7 +3524,7 @@ namespace ConsanWebApp
 
                 fetch('/api/industrial-content').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
                     if (data && data.translations) {
-                        ['ar', 'en', 'ku'].forEach(function(l) {
+                        ['ar', 'en', 'ku', 'fa', 'tr'].forEach(function(l) {
                             if (data.translations[l]) Object.assign(translations[l], data.translations[l]);
                         });
                     }
@@ -4137,6 +4184,7 @@ namespace ConsanWebApp
                         <button class="tab-btn" data-tab="guide" onclick="switchAdminTab('guide')">محتوى الدليل</button>
                         <button class="tab-btn" data-tab="visitors" onclick="switchAdminTab('visitors')">الزوار</button>
                         <button class="tab-btn" data-tab="billing" onclick="switchAdminTab('billing')">الفوترة والإدامة</button>
+                        %%CHAT_TAB%%
                     </nav>
 
                     <!-- ===== USERS & ACCOUNTS TAB ===== -->
@@ -4229,10 +4277,14 @@ namespace ConsanWebApp
                             <button class="lang-tab-btn active" data-lang="ar" onclick="switchContentLang('ar')">العربية</button>
                             <button class="lang-tab-btn" data-lang="en" onclick="switchContentLang('en')">English</button>
                             <button class="lang-tab-btn" data-lang="ku" onclick="switchContentLang('ku')">کوردی</button>
+                            <button class="lang-tab-btn" data-lang="fa" onclick="switchContentLang('fa')">فارسی</button>
+                            <button class="lang-tab-btn" data-lang="tr" onclick="switchContentLang('tr')">Türkçe</button>
                         </div>
                         <div id="contentFields-ar" class="content-fields"></div>
                         <div id="contentFields-en" class="content-fields hidden"></div>
                         <div id="contentFields-ku" class="content-fields hidden"></div>
+                        <div id="contentFields-fa" class="content-fields hidden"></div>
+                        <div id="contentFields-tr" class="content-fields hidden"></div>
 
                         <button class="save-btn" onclick="saveContent()">حفظ كل تغييرات الصفحة الرئيسية</button>
                     </section>
@@ -4242,10 +4294,14 @@ namespace ConsanWebApp
                             <button class="lang-tab-btn active" data-lang="ar" onclick="switchIndLang('ar')">العربية</button>
                             <button class="lang-tab-btn" data-lang="en" onclick="switchIndLang('en')">English</button>
                             <button class="lang-tab-btn" data-lang="ku" onclick="switchIndLang('ku')">کوردی</button>
+                            <button class="lang-tab-btn" data-lang="fa" onclick="switchIndLang('fa')">فارسی</button>
+                            <button class="lang-tab-btn" data-lang="tr" onclick="switchIndLang('tr')">Türkçe</button>
                         </div>
                         <div id="indFields-ar" class="content-fields"></div>
                         <div id="indFields-en" class="content-fields hidden"></div>
                         <div id="indFields-ku" class="content-fields hidden"></div>
+                        <div id="indFields-fa" class="content-fields hidden"></div>
+                        <div id="indFields-tr" class="content-fields hidden"></div>
 
 
                         <button class="save-btn" onclick="saveIndustrialContent()">حفظ تغييرات الخدمات الصناعية</button>
@@ -4291,9 +4347,13 @@ namespace ConsanWebApp
                                                 <label>الاسم بالعربية *<input type="text" id="pinNameAr" placeholder="مثال: قسم تصليح البمبات" /></label>
                                                 <label>Name (English)<input type="text" id="pinNameEn" placeholder="e.g. Pump repair department" /></label>
                                                 <label>ناو (کوردی)<input type="text" id="pinNameKu" /></label>
+                                                <label>نام (فارسی)<input type="text" id="pinNameFa" /></label>
+                                                <label>Ad (Türkçe)<input type="text" id="pinNameTr" dir="ltr" /></label>
                                                 <label>العنوان (عربي)<input type="text" id="pinAddressAr" placeholder="النجف الأشرف - الحي الصناعي" /></label>
                                                 <label>Address (English)<input type="text" id="pinAddressEn" /></label>
                                                 <label>ناونیشان (کوردی)<input type="text" id="pinAddressKu" /></label>
+                                                <label>نشانی (فارسی)<input type="text" id="pinAddressFa" /></label>
+                                                <label>Adres (Türkçe)<input type="text" id="pinAddressTr" dir="ltr" /></label>
                                                 <label>رقم الهاتف<input type="text" id="pinPhone" placeholder="07xx xxx xxxx" dir="ltr" /></label>
                                                 <label>خط العرض<input type="text" id="pinLat" dir="ltr" oninput="pinCoordsTyped()" /></label>
                                                 <label>خط الطول<input type="text" id="pinLng" dir="ltr" oninput="pinCoordsTyped()" /></label>
@@ -4366,6 +4426,8 @@ namespace ConsanWebApp
                                 <textarea id="albumCaptionAr" placeholder="الوصف بالعربية"></textarea>
                                 <textarea id="albumCaptionEn" placeholder="Caption in English"></textarea>
                                 <textarea id="albumCaptionKu" placeholder="ناونیشان بە کوردی"></textarea>
+                                <textarea id="albumCaptionFa" placeholder="عنوان به فارسی"</textarea>
+                                <textarea id="albumCaptionTr" dir="ltr" placeholder="Türkçe açıklama"</textarea>
                             </div>
                             <button class="small-btn primary" id="albumSubmitBtn" onclick="submitAlbumItem()">إضافة عنصر جديد</button>
                         </fieldset>
@@ -4437,6 +4499,8 @@ namespace ConsanWebApp
                                 <input type="text" id="galCapAr" placeholder="الوصف بالعربية (اختياري)" maxlength="300" />
                                 <input type="text" id="galCapEn" placeholder="Caption in English (optional)" maxlength="300" />
                                 <input type="text" id="galCapKu" placeholder="ناونیشان بە کوردی (ئارەزوومەندانە)" maxlength="300" />
+                                <input type="text" id="galCapFa" placeholder="عنوان به فارسی (اختیاری)" maxlength="300" /
+                                <input type="text" id="galCapTr" dir="ltr" placeholder="Türkçe açıklama (isteğe bağlı)" maxlength="300" /
                             </div>
                             <button class="small-btn primary" id="galUploadBtn" onclick="uploadGalleryFiles()">رفع إلى المعرض</button>
                             <div class="gal-progress" id="galProgress"></div>
@@ -4449,6 +4513,7 @@ namespace ConsanWebApp
                     </section>
 
                     <!-- ===== VISITORS TAB ===== -->
+                    %%CHAT_PANEL%%
                     <section id="tab-visitors" class="tab-panel">
                         <div class="vis-head">
                             <h2>زوار الموقع</h2>
@@ -4600,9 +4665,13 @@ namespace ConsanWebApp
                                 <input type="text" id="explorerTitleAr" placeholder="العنوان بالعربية" />
                                 <input type="text" id="explorerTitleEn" placeholder="Title in English" />
                                 <input type="text" id="explorerTitleKu" placeholder="ناونیشان بە کوردی" />
+                                <input type="text" id="explorerTitleFa" placeholder="عنوان به فارسی" /
+                                <input type="text" id="explorerTitleTr" dir="ltr" placeholder="Türkçe başlık" /
                                 <textarea id="explorerDescAr" placeholder="الوصف بالعربية"></textarea>
                                 <textarea id="explorerDescEn" placeholder="Description in English"></textarea>
                                 <textarea id="explorerDescKu" placeholder="وەسف بە کوردی"></textarea>
+                                <textarea id="explorerDescFa" placeholder="توضیح به فارسی"</textarea>
+                                <textarea id="explorerDescTr" dir="ltr" placeholder="Türkçe açıklama"</textarea>
                                 <input type="text" id="explorerTags" placeholder="الوسوم (مفصولة بفاصلة) مثال: دقة عالية, تصنيع رقمي" />
                                 <input type="text" id="explorerLink" placeholder="الرابط (مثال: /guide)" value="/guide" />
                                 <input type="text" id="explorerSortOrder" placeholder="ترتيب العرض (رقم)" value="0" />
@@ -4645,9 +4714,13 @@ namespace ConsanWebApp
                                 <input type="text" id="guideTopicTitleAr" placeholder="العنوان بالعربية" />
                                 <input type="text" id="guideTopicTitleEn" placeholder="Title in English" />
                                 <input type="text" id="guideTopicTitleKu" placeholder="ناونیشان بە کوردی" />
+                                <input type="text" id="guideTopicTitleFa" placeholder="عنوان به فارسی" /
+                                <input type="text" id="guideTopicTitleTr" dir="ltr" placeholder="Türkçe başlık" /
                                 <textarea id="guideTopicBodyAr" placeholder="المحتوى بالعربية"></textarea>
                                 <textarea id="guideTopicBodyEn" placeholder="Body in English"></textarea>
                                 <textarea id="guideTopicBodyKu" placeholder="ناوەڕۆک بە کوردی"></textarea>
+                                <textarea id="guideTopicBodyFa" placeholder="متن به فارسی"</textarea>
+                                <textarea id="guideTopicBodyTr" dir="ltr" placeholder="Türkçe metin"</textarea>
                             </div>
                             <button class="small-btn primary" id="guideTopicSubmitBtn" onclick="submitGuideTopic()">إضافة موضوع جديد</button>
                         </fieldset>
@@ -4674,12 +4747,18 @@ namespace ConsanWebApp
                                 <input type="text" id="guideEquipNameAr" placeholder="اسم المعدة بالعربية" />
                                 <input type="text" id="guideEquipNameEn" placeholder="Equipment name in English" />
                                 <input type="text" id="guideEquipNameKu" placeholder="ناوی ئامێر بە کوردی" />
+                                <input type="text" id="guideEquipNameFa" placeholder="نام دستگاه به فارسی" /
+                                <input type="text" id="guideEquipNameTr" dir="ltr" placeholder="Makine adı (Türkçe)" /
                                 <input type="text" id="guideEquipSpecAr" placeholder="المواصفات (عربي)" />
                                 <input type="text" id="guideEquipSpecEn" placeholder="Specifications (English)" />
                                 <input type="text" id="guideEquipSpecKu" placeholder="تایبەتمەندی (کوردی)" />
+                                <input type="text" id="guideEquipSpecFa" placeholder="مشخصات (فارسی)" /
+                                <input type="text" id="guideEquipSpecTr" dir="ltr" placeholder="Özellikler (Türkçe)" /
                                 <input type="text" id="guideEquipUseAr" placeholder="الاستخدام (عربي)" />
                                 <input type="text" id="guideEquipUseEn" placeholder="Usage (English)" />
                                 <input type="text" id="guideEquipUseKu" placeholder="بەکارهێنان (کوردی)" />
+                                <input type="text" id="guideEquipUseFa" placeholder="کاربرد (فارسی)" /
+                                <input type="text" id="guideEquipUseTr" dir="ltr" placeholder="Kullanım (Türkçe)" /
                                 <input type="text" id="guideEquipSortOrder" placeholder="ترتيب العرض (رقم)" value="0" />
                             </div>
                             <button class="small-btn primary" id="guideEquipSubmitBtn" onclick="submitGuideEquip()">إضافة معدة جديدة</button>
@@ -4706,8 +4785,8 @@ namespace ConsanWebApp
                 <script src="/me/maps.js?v=%%MAPSV%%"></script>
 
                 <script>
-                var contentData = { translations: { ar: {}, en: {}, ku: {} }, heroImages: [] };
-                var industrialData = { translations: { ar: {}, en: {}, ku: {} }, mapEmbedUrl: '' };
+                var contentData = { translations: { ar: {}, en: {}, ku: {}, fa: {}, tr: {} }, heroImages: [] };
+                var industrialData = { translations: { ar: {}, en: {}, ku: {}, fa: {}, tr: {} }, mapEmbedUrl: '' };
                 var editingPinId = null;
                 var editingAlbumId = null;
                 var editingExplorerId = null;
@@ -5045,8 +5124,8 @@ namespace ConsanWebApp
 
                 function loadContent() {
                     fetch('/api/content').then(function(r) { return r.json(); }).then(function(data) {
-                        contentData = data || { translations: { ar: {}, en: {}, ku: {} }, heroImages: [] };
-                        ['ar', 'en', 'ku'].forEach(function(l) {
+                        contentData = data || { translations: { ar: {}, en: {}, ku: {}, fa: {}, tr: {} }, heroImages: [] };
+                        ['ar', 'en', 'ku', 'fa', 'tr'].forEach(function(l) {
                             buildFields('contentFields-' + l, contentData.translations[l] || {});
                         });
                         heroList = (contentData.heroImages || []).filter(function(u) { return u && u.trim(); });
@@ -5058,13 +5137,13 @@ namespace ConsanWebApp
                     document.querySelectorAll('#tab-content .lang-tab-btn').forEach(function(btn) {
                         btn.classList.toggle('active', btn.dataset.lang === lang);
                     });
-                    ['ar', 'en', 'ku'].forEach(function(l) {
+                    ['ar', 'en', 'ku', 'fa', 'tr'].forEach(function(l) {
                         document.getElementById('contentFields-' + l).classList.toggle('hidden', l !== lang);
                     });
                 }
 
                 function saveContent() {
-                    var translations = { ar: collectFields('contentFields-ar'), en: collectFields('contentFields-en'), ku: collectFields('contentFields-ku') };
+                    var translations = { ar: collectFields('contentFields-ar'), en: collectFields('contentFields-en'), ku: collectFields('contentFields-ku'), fa: collectFields('contentFields-fa'), tr: collectFields('contentFields-tr') };
                     var heroImages = heroList.slice();
                     fetch('/api/admin/content', {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -5079,8 +5158,8 @@ namespace ConsanWebApp
                 // ---- Industrial content ----
                 function loadIndustrialContent() {
                     fetch('/api/industrial-content').then(function(r) { return r.json(); }).then(function(data) {
-                        industrialData = data || { translations: { ar: {}, en: {}, ku: {} }, mapEmbedUrl: '' };
-                        ['ar', 'en', 'ku'].forEach(function(l) {
+                        industrialData = data || { translations: { ar: {}, en: {}, ku: {}, fa: {}, tr: {} }, mapEmbedUrl: '' };
+                        ['ar', 'en', 'ku', 'fa', 'tr'].forEach(function(l) {
                             buildFields('indFields-' + l, industrialData.translations[l] || {});
                         });
                     });
@@ -5090,13 +5169,13 @@ namespace ConsanWebApp
                     document.querySelectorAll('#tab-industrial .lang-tab-btn').forEach(function(btn) {
                         btn.classList.toggle('active', btn.dataset.lang === lang);
                     });
-                    ['ar', 'en', 'ku'].forEach(function(l) {
+                    ['ar', 'en', 'ku', 'fa', 'tr'].forEach(function(l) {
                         document.getElementById('indFields-' + l).classList.toggle('hidden', l !== lang);
                     });
                 }
 
                 function saveIndustrialContent() {
-                    var translations = { ar: collectFields('indFields-ar'), en: collectFields('indFields-en'), ku: collectFields('indFields-ku') };
+                    var translations = { ar: collectFields('indFields-ar'), en: collectFields('indFields-en'), ku: collectFields('indFields-ku'), fa: collectFields('indFields-fa'), tr: collectFields('indFields-tr') };
                     var mapEmbedUrl = industrialData.mapEmbedUrl || '';   // no longer edited: every map uses the workshop pin
                     fetch('/api/admin/industrial-content', {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -5167,7 +5246,7 @@ namespace ConsanWebApp
                 }
 
                 function clearPinFields() {
-                    ['pinNameAr','pinNameEn','pinNameKu','pinAddressAr','pinAddressEn','pinAddressKu','pinPhone','pinLat','pinLng'].forEach(function(id) {
+                    ['pinNameAr','pinNameEn','pinNameKu','pinNameFa','pinNameTr','pinAddressAr','pinAddressEn','pinAddressKu','pinAddressFa','pinAddressTr','pinPhone','pinLat','pinLng'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
                 }
@@ -5207,9 +5286,13 @@ namespace ConsanWebApp
                     document.getElementById('pinNameAr').value = pin.nameAr || '';
                     document.getElementById('pinNameEn').value = pin.nameEn || '';
                     document.getElementById('pinNameKu').value = pin.nameKu || '';
+                    document.getElementById('pinNameFa').value = pin.nameFa || '';
+                    document.getElementById('pinNameTr').value = pin.nameTr || '';
                     document.getElementById('pinAddressAr').value = pin.addressAr || '';
                     document.getElementById('pinAddressEn').value = pin.addressEn || '';
                     document.getElementById('pinAddressKu').value = pin.addressKu || '';
+                    document.getElementById('pinAddressFa').value = pin.addressFa || '';
+                    document.getElementById('pinAddressTr').value = pin.addressTr || '';
                     document.getElementById('pinPhone').value = pin.phone || '';
                     setPinCoords({ lat: pin.latitude, lng: pin.longitude });
                     openPinEditor(pin.isWorkshop ? 'تعديل موقع الورشة (يظهر في كل خرائط الموقع)' : 'تعديل: ' + (pin.nameAr || pin.nameEn || ''));
@@ -5252,9 +5335,13 @@ namespace ConsanWebApp
                         nameAr: nameAr,
                         nameEn: nameEn,
                         nameKu: document.getElementById('pinNameKu').value.trim(),
+                        nameFa: document.getElementById('pinNameFa').value.trim(),
+                        nameTr: document.getElementById('pinNameTr').value.trim(),
                         addressAr: document.getElementById('pinAddressAr').value.trim(),
                         addressEn: document.getElementById('pinAddressEn').value.trim(),
                         addressKu: document.getElementById('pinAddressKu').value.trim(),
+                        addressFa: document.getElementById('pinAddressFa').value.trim(),
+                        addressTr: document.getElementById('pinAddressTr').value.trim(),
                         phone: document.getElementById('pinPhone').value.trim(),
                         latitude: lat,
                         longitude: lng
@@ -5451,6 +5538,8 @@ namespace ConsanWebApp
                     document.getElementById('albumCaptionAr').value = item.captionAr || '';
                     document.getElementById('albumCaptionEn').value = item.captionEn || '';
                     document.getElementById('albumCaptionKu').value = item.captionKu || '';
+                    document.getElementById('albumCaptionFa').value = item.captionFa || '';
+                    document.getElementById('albumCaptionTr').value = item.captionTr || '';
                     document.getElementById('albumSubmitBtn').textContent = 'حفظ التعديلات';
                     var banner = document.getElementById('albumEditingBanner');
                     banner.classList.add('active');
@@ -5460,7 +5549,7 @@ namespace ConsanWebApp
 
                 function cancelAlbumEdit() {
                     editingAlbumId = null;
-                    ['albumYear','albumImageUrl','albumCaptionAr','albumCaptionEn','albumCaptionKu'].forEach(function(id) {
+                    ['albumYear','albumImageUrl','albumCaptionAr','albumCaptionEn','albumCaptionKu','albumCaptionFa','albumCaptionTr'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
                     document.getElementById('albumSubmitBtn').textContent = 'إضافة عنصر جديد';
@@ -5478,7 +5567,9 @@ namespace ConsanWebApp
                         imageUrl: imageUrl,
                         captionAr: document.getElementById('albumCaptionAr').value,
                         captionEn: document.getElementById('albumCaptionEn').value,
-                        captionKu: document.getElementById('albumCaptionKu').value
+                        captionKu: document.getElementById('albumCaptionKu').value,
+                        captionFa: document.getElementById('albumCaptionFa').value,
+                        captionTr: document.getElementById('albumCaptionTr').value
                     };
                     var url = '/api/admin/archival-album';
                     var method = 'POST';
@@ -5563,9 +5654,13 @@ namespace ConsanWebApp
                     document.getElementById('explorerTitleAr').value = card.titleAr || '';
                     document.getElementById('explorerTitleEn').value = card.titleEn || '';
                     document.getElementById('explorerTitleKu').value = card.titleKu || '';
+                    document.getElementById('explorerTitleFa').value = card.titleFa || '';
+                    document.getElementById('explorerTitleTr').value = card.titleTr || '';
                     document.getElementById('explorerDescAr').value = card.descAr || '';
                     document.getElementById('explorerDescEn').value = card.descEn || '';
                     document.getElementById('explorerDescKu').value = card.descKu || '';
+                    document.getElementById('explorerDescFa').value = card.descFa || '';
+                    document.getElementById('explorerDescTr').value = card.descTr || '';
                     document.getElementById('explorerTags').value = card.tags || '';
                     document.getElementById('explorerLink').value = card.link || '/guide';
                     document.getElementById('explorerSortOrder').value = card.sortOrder || 0;
@@ -5578,7 +5673,7 @@ namespace ConsanWebApp
 
                 function cancelExplorerEdit() {
                     editingExplorerId = null;
-                    ['explorerIcon','explorerImageUrl','explorerTitleAr','explorerTitleEn','explorerTitleKu','explorerDescAr','explorerDescEn','explorerDescKu','explorerTags','explorerLink','explorerSortOrder'].forEach(function(id) {
+                    ['explorerIcon','explorerImageUrl','explorerTitleAr','explorerTitleEn','explorerTitleKu','explorerTitleFa','explorerTitleTr','explorerDescAr','explorerDescEn','explorerDescKu','explorerDescFa','explorerDescTr','explorerTags','explorerLink','explorerSortOrder'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
                     document.getElementById('explorerIcon').value = '';
@@ -5595,9 +5690,13 @@ namespace ConsanWebApp
                         titleAr: document.getElementById('explorerTitleAr').value,
                         titleEn: document.getElementById('explorerTitleEn').value,
                         titleKu: document.getElementById('explorerTitleKu').value,
+                        titleFa: document.getElementById('explorerTitleFa').value,
+                        titleTr: document.getElementById('explorerTitleTr').value,
                         descAr: document.getElementById('explorerDescAr').value,
                         descEn: document.getElementById('explorerDescEn').value,
                         descKu: document.getElementById('explorerDescKu').value,
+                        descFa: document.getElementById('explorerDescFa').value,
+                        descTr: document.getElementById('explorerDescTr').value,
                         tags: document.getElementById('explorerTags').value,
                         link: document.getElementById('explorerLink').value || '/guide',
                         sortOrder: parseInt(document.getElementById('explorerSortOrder').value) || 0
@@ -5648,7 +5747,7 @@ namespace ConsanWebApp
                 }
 
                 // ---- Guide content (admin) ----
-                var guideAdminData = { translations: { ar: {}, en: {}, ku: {} }, topics: [], equipment: [] };
+                var guideAdminData = { translations: { ar: {}, en: {}, ku: {}, fa: {}, tr: {} }, topics: [], equipment: [] };
 
                 function loadGuideContentAdmin() {
                     fetch('/api/admin/guide-content').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
@@ -5690,9 +5789,13 @@ namespace ConsanWebApp
                     document.getElementById('guideTopicTitleAr').value = t.titleAr || '';
                     document.getElementById('guideTopicTitleEn').value = t.titleEn || '';
                     document.getElementById('guideTopicTitleKu').value = t.titleKu || '';
+                    document.getElementById('guideTopicTitleFa').value = t.titleFa || '';
+                    document.getElementById('guideTopicTitleTr').value = t.titleTr || '';
                     document.getElementById('guideTopicBodyAr').value = t.bodyAr || '';
                     document.getElementById('guideTopicBodyEn').value = t.bodyEn || '';
                     document.getElementById('guideTopicBodyKu').value = t.bodyKu || '';
+                    document.getElementById('guideTopicBodyFa').value = t.bodyFa || '';
+                    document.getElementById('guideTopicBodyTr').value = t.bodyTr || '';
                     document.getElementById('guideTopicSubmitBtn').textContent = 'حفظ التعديلات';
                     document.getElementById('guideTopicEditingBanner').classList.add('active');
                     document.getElementById('guideTopicEditingLabel').textContent = 'جاري تعديل: ' + (t.titleAr || '');
@@ -5700,7 +5803,7 @@ namespace ConsanWebApp
 
                 function cancelGuideTopicEdit() {
                     editingGuideTopicId = null;
-                    ['guideTopicIcon','guideTopicSortOrder','guideTopicTitleAr','guideTopicTitleEn','guideTopicTitleKu','guideTopicBodyAr','guideTopicBodyEn','guideTopicBodyKu'].forEach(function(id) {
+                    ['guideTopicIcon','guideTopicSortOrder','guideTopicTitleAr','guideTopicTitleEn','guideTopicTitleKu','guideTopicTitleFa','guideTopicTitleTr','guideTopicBodyAr','guideTopicBodyEn','guideTopicBodyKu','guideTopicBodyFa','guideTopicBodyTr'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
                     document.getElementById('guideTopicIcon').value = '';
@@ -5716,9 +5819,13 @@ namespace ConsanWebApp
                         titleAr: document.getElementById('guideTopicTitleAr').value,
                         titleEn: document.getElementById('guideTopicTitleEn').value,
                         titleKu: document.getElementById('guideTopicTitleKu').value,
+                        titleFa: document.getElementById('guideTopicTitleFa').value,
+                        titleTr: document.getElementById('guideTopicTitleTr').value,
                         bodyAr: document.getElementById('guideTopicBodyAr').value,
                         bodyEn: document.getElementById('guideTopicBodyEn').value,
-                        bodyKu: document.getElementById('guideTopicBodyKu').value
+                        bodyKu: document.getElementById('guideTopicBodyKu').value,
+                        bodyFa: document.getElementById('guideTopicBodyFa').value,
+                        bodyTr: document.getElementById('guideTopicBodyTr').value
                     };
                     if (editingGuideTopicId) {
                         payload.id = editingGuideTopicId;
@@ -5777,12 +5884,18 @@ namespace ConsanWebApp
                     document.getElementById('guideEquipNameAr').value = eq.nameAr || '';
                     document.getElementById('guideEquipNameEn').value = eq.nameEn || '';
                     document.getElementById('guideEquipNameKu').value = eq.nameKu || '';
+                    document.getElementById('guideEquipNameFa').value = eq.nameFa || '';
+                    document.getElementById('guideEquipNameTr').value = eq.nameTr || '';
                     document.getElementById('guideEquipSpecAr').value = eq.specAr || '';
                     document.getElementById('guideEquipSpecEn').value = eq.specEn || '';
                     document.getElementById('guideEquipSpecKu').value = eq.specKu || '';
+                    document.getElementById('guideEquipSpecFa').value = eq.specFa || '';
+                    document.getElementById('guideEquipSpecTr').value = eq.specTr || '';
                     document.getElementById('guideEquipUseAr').value = eq.useAr || '';
                     document.getElementById('guideEquipUseEn').value = eq.useEn || '';
                     document.getElementById('guideEquipUseKu').value = eq.useKu || '';
+                    document.getElementById('guideEquipUseFa').value = eq.useFa || '';
+                    document.getElementById('guideEquipUseTr').value = eq.useTr || '';
                     document.getElementById('guideEquipSortOrder').value = eq.sortOrder || 0;
                     document.getElementById('guideEquipSubmitBtn').textContent = 'حفظ التعديلات';
                     document.getElementById('guideEquipEditingBanner').classList.add('active');
@@ -5791,7 +5904,7 @@ namespace ConsanWebApp
 
                 function cancelGuideEquipEdit() {
                     editingGuideEquipId = null;
-                    ['guideEquipNameAr','guideEquipNameEn','guideEquipNameKu','guideEquipSpecAr','guideEquipSpecEn','guideEquipSpecKu','guideEquipUseAr','guideEquipUseEn','guideEquipUseKu','guideEquipSortOrder'].forEach(function(id) {
+                    ['guideEquipNameAr','guideEquipNameEn','guideEquipNameKu','guideEquipNameFa','guideEquipNameTr','guideEquipSpecAr','guideEquipSpecEn','guideEquipSpecKu','guideEquipSpecFa','guideEquipSpecTr','guideEquipUseAr','guideEquipUseEn','guideEquipUseKu','guideEquipUseFa','guideEquipUseTr','guideEquipSortOrder'].forEach(function(id) {
                         document.getElementById(id).value = '';
                     });
                     document.getElementById('guideEquipSortOrder').value = '0';
@@ -5804,12 +5917,18 @@ namespace ConsanWebApp
                         nameAr: document.getElementById('guideEquipNameAr').value,
                         nameEn: document.getElementById('guideEquipNameEn').value,
                         nameKu: document.getElementById('guideEquipNameKu').value,
+                        nameFa: document.getElementById('guideEquipNameFa').value,
+                        nameTr: document.getElementById('guideEquipNameTr').value,
                         specAr: document.getElementById('guideEquipSpecAr').value,
                         specEn: document.getElementById('guideEquipSpecEn').value,
                         specKu: document.getElementById('guideEquipSpecKu').value,
+                        specFa: document.getElementById('guideEquipSpecFa').value,
+                        specTr: document.getElementById('guideEquipSpecTr').value,
                         useAr: document.getElementById('guideEquipUseAr').value,
                         useEn: document.getElementById('guideEquipUseEn').value,
                         useKu: document.getElementById('guideEquipUseKu').value,
+                        useFa: document.getElementById('guideEquipUseFa').value,
+                        useTr: document.getElementById('guideEquipUseTr').value,
                         sortOrder: parseInt(document.getElementById('guideEquipSortOrder').value) || 0
                     };
                     if (editingGuideEquipId) {
@@ -6001,6 +6120,8 @@ namespace ConsanWebApp
                                 '<input type="text" data-k="captionAr" maxlength="300" placeholder="الوصف بالعربية" value="' + escapeHtml(it.captionAr || '') + '" />' +
                                 '<input type="text" data-k="captionEn" maxlength="300" placeholder="English caption" value="' + escapeHtml(it.captionEn || '') + '" />' +
                                 '<input type="text" data-k="captionKu" maxlength="300" placeholder="ناونیشانی کوردی" value="' + escapeHtml(it.captionKu || '') + '" />' +
+                                '<input type="text" data-k="captionFa" maxlength="300" placeholder="عنوان به فارسی" value="' + escapeHtml(it.captionFa || '') + '" />' +
+                                '<input type="text" data-k="captionTr" maxlength="300" dir="ltr" placeholder="Türkçe açıklama" value="' + escapeHtml(it.captionTr || '') + '" />' +
                             '</div>' +
                             '<div class="gal-actions">' +
                                 '<button class="small-btn primary" data-act="save">حفظ الوصف</button>' +
@@ -6066,6 +6187,8 @@ namespace ConsanWebApp
                             fd.append('captionAr', document.getElementById('galCapAr').value);
                             fd.append('captionEn', document.getElementById('galCapEn').value);
                             fd.append('captionKu', document.getElementById('galCapKu').value);
+                            fd.append('captionFa', document.getElementById('galCapFa').value);
+                            fd.append('captionTr', document.getElementById('galCapTr').value);
                         }
                         fd.append('chunk', file.slice(i * CHUNK, Math.min(file.size, (i + 1) * CHUNK)), 'chunk');
                         var res = null;
@@ -6374,11 +6497,12 @@ namespace ConsanWebApp
                 if (passInput) passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') adminLogin(); });
 
                 checkAuth();
+                %%CHAT_SCRIPT%%
                 </script>
             </body>
             """;
 
-            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + "</style>\n</head>\n" + body.Replace("%%MAPSV%%", AssetVersion).Replace("%%MAPCFG%%", MapConfigScript()) + "\n</html>";
+            return "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n<title>لوحة التحكم - ME Workshop</title>\n<style>" + css + ChatbotAdminCss() + "</style>\n</head>\n" + body.Replace("%%CHAT_TAB%%", ChatbotTabButton).Replace("%%CHAT_PANEL%%", ChatbotAdminPanel()).Replace("%%CHAT_SCRIPT%%", ChatbotAdminScript()).Replace("%%MAPSV%%", AssetVersion).Replace("%%MAPCFG%%", MapConfigScript()) + "\n</html>";
         }
     }
 }

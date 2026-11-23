@@ -36,6 +36,13 @@ services:
       - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
       - ConnectionStrings__MigrationConnection=${MIGRATION_CONNECTION_STRING}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash}
+      - GEMINI_FALLBACK_MODEL=${GEMINI_FALLBACK_MODEL:-gemini-3.5-flash-lite}
+      - CHAT_PER_MINUTE=${CHAT_PER_MINUTE:-6}
+      - CHAT_PER_DAY=${CHAT_PER_DAY:-40}
+      - CHAT_GLOBAL_PER_DAY=${CHAT_GLOBAL_PER_DAY:-1500}
+      - CHAT_MAX_CHARS=${CHAT_MAX_CHARS:-500}
     volumes:
       # ⚠️ مهم جداً — الصور والبيانات تبقى بعد rebuild
       - consan_uploads:/app/wwwroot/uploads

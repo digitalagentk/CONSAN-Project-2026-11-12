@@ -1,0 +1,140 @@
+/* ME Workshop — Middle Euphrates Workshop · AI chat assistant
+   Uses the site's own tokens (site.css), so it follows the dark/light theme.
+   It sits on the inline-start corner: right in Arabic, Kurdish and Persian, left in
+   English and Turkish, opposite the contact launcher. */
+
+.me-chat { position: fixed; inset-block-end: 22px; inset-inline-start: 22px; z-index: 950; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; font-family: var(--f-body); }
+body.consent-open .me-chat { inset-block-end: calc(var(--consent-h, 80px) + 14px); }
+
+.mc-launch {
+    display: inline-flex; align-items: center; gap: 10px; min-height: 54px; padding-block: 0; padding-inline: 7px 20px;
+    border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--contact-popup-bg); color: var(--fg);
+    font: 600 0.98rem/1.2 var(--f-body); cursor: pointer; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.mc-launch:hover { border-color: var(--accent); }
+.mc-launch:focus-visible, .mc-icon:focus-visible, .mc-send:focus-visible, .mc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mc-launch .mc-avatar { width: 40px; height: 40px; }
+.me-chat.mc-open .mc-launch { display: none; }
+
+.mc-panel {
+    width: min(380px, calc(100vw - 44px)); height: min(580px, calc(100svh - 120px));
+    display: flex; flex-direction: column; overflow: hidden; margin: 0; padding: 0;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--rule-strong); border-top: 3px solid var(--accent);
+    border-radius: var(--radius); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    animation: mc-in 0.22s var(--ease);
+}
+.mc-panel[hidden] { display: none; }
+@keyframes mc-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.mc-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--rule); background: var(--bg-panel); }
+.mc-avatar {
+    width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%;
+    background: linear-gradient(180deg, var(--brass-hi) 0%, var(--brass) 55%, #B08E58 100%); color: var(--on-brass);
+    font: 700 0.85rem/1 "Barlow Condensed", var(--f-body); letter-spacing: 0.04em;
+}
+.mc-avatar svg { width: 62%; height: 62%; fill: var(--on-brass); }
+.mc-heading { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.mc-heading strong { font-family: var(--f-display); font-size: 1.05rem; }
+.mc-heading small { color: var(--fg-3); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; background: transparent; border: 0; border-radius: var(--radius); color: var(--fg-2); cursor: pointer; }
+.mc-icon:hover { color: var(--fg); background: var(--bg-glass); }
+.mc-icon svg { width: 18px; height: 18px; }
+a.mc-icon { color: var(--accent-text); }
+
+.mc-log { flex: 1; overflow-y: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+.mc-msg {
+    max-width: 86%; padding: 10px 13px; border-radius: 14px; font-size: 0.95rem; line-height: 1.6;
+    white-space: normal; overflow-wrap: anywhere; unicode-bidi: plaintext; text-align: start;
+}
+.mc-model { align-self: flex-start; background: var(--bg-panel); border: 1px solid var(--rule); border-start-start-radius: 4px; }
+.mc-user { align-self: flex-end; background: var(--accent); color: var(--on-brass); border-start-end-radius: 4px; }
+[data-theme="light"] .mc-user { color: #fff; }
+.mc-msg a { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.mc-user a { color: inherit; }
+.mc-err { border-color: rgba(220, 120, 90, 0.55); }
+.mc-typing { color: var(--fg-3); font-style: italic; }
+.mc-typing::after { content: ""; display: inline-block; width: 1.2em; text-align: start; animation: mc-dots 1.2s steps(4) infinite; }
+@keyframes mc-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+.mc-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 12px; }
+.mc-chips[hidden] { display: none; }
+.mc-chip { border: 1px solid var(--rule-strong); background: transparent; color: var(--fg); border-radius: 999px; padding: 6px 12px; font: 500 0.86rem/1.3 var(--f-body); cursor: pointer; }
+.mc-chip:hover { border-color: var(--accent); color: var(--accent-text); }
+
+.mc-form { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--rule); background: var(--bg-panel); }
+.mc-form textarea {
+    flex: 1; resize: none; min-height: 44px; max-height: 120px; padding: 11px 12px;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--rule-strong); border-radius: var(--radius);
+    font: 400 16px/1.4 var(--f-body);   /* 16px stops iOS zooming in */
+}
+.mc-form textarea:focus { outline: none; border-color: var(--accent); }
+.mc-send {
+    width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: var(--radius); cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.25); color: var(--on-brass);
+    background: linear-gradient(180deg, var(--brass-hi) 0%, var(--brass) 55%, #B08E58 100%);
+}
+.mc-send:disabled { opacity: 0.45; cursor: default; }
+.mc-send svg { width: 20px; height: 20px; }
+html[dir="rtl"] .mc-send svg { transform: scaleX(-1); }
+
+.mc-foot { display: flex; justify-content: space-between; gap: 10px; padding: 0 12px 10px; background: var(--bg-panel); color: var(--fg-3); font-size: 0.74rem; line-height: 1.4; }
+.mc-count { flex: none; font-variant-numeric: tabular-nums; }
+
+/* ---- action buttons (booking card, greeting) ---- */
+.mc-act {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 8px 14px;
+    border: 1px solid var(--rule-strong); border-radius: var(--radius); background: transparent; color: var(--fg);
+    font: 600 0.9rem/1.2 var(--f-body); text-decoration: none; cursor: pointer;
+}
+.mc-act svg { width: 18px; height: 18px; flex: none; }
+.mc-act:hover { border-color: var(--accent); color: var(--accent-text); }
+.mc-act-main { background: linear-gradient(180deg, var(--brass-hi) 0%, var(--brass) 55%, #B08E58 100%); color: var(--on-brass); border-color: rgba(0, 0, 0, 0.25); }
+.mc-act-main:hover { color: var(--on-brass); filter: brightness(1.05); }
+.mc-act-wa { background: #1f8f4e; border-color: #1f8f4e; color: #fff; }
+.mc-act-wa:hover { background: #23a058; color: #fff; border-color: #23a058; }
+.mc-chip-main { border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
+
+/* ---- the saved booking ---- */
+.mc-booking { align-self: stretch; border: 1px solid var(--accent); border-radius: 12px; background: var(--bg-panel); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.mc-booking-head { display: flex; align-items: center; gap: 8px; }
+.mc-booking-head svg { width: 20px; height: 20px; color: #4fbf7a; flex: none; }
+.mc-booking-head span { margin-inline-start: auto; color: var(--fg-3); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.mc-booking p { margin: 0; font-size: 0.9rem; line-height: 1.55; }
+.mc-booking-note { color: var(--fg-2); }
+.mc-booking-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-booking-actions .mc-act { flex: 1 1 140px; }
+
+/* ---- greeting bubble on arrival ---- */
+.mc-teaser {
+    position: relative; width: min(330px, calc(100vw - 44px)); padding: 16px; padding-inline-end: 40px;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--rule-strong); border-top: 3px solid var(--accent);
+    border-radius: var(--radius); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); animation: mc-in 0.3s var(--ease);
+}
+.mc-teaser-x { position: absolute; top: 8px; inset-inline-end: 8px; width: 30px; height: 30px; display: grid; place-items: center; border: 0; background: transparent; color: var(--fg-3); cursor: pointer; border-radius: var(--radius); }
+.mc-teaser-x:hover { color: var(--fg); background: var(--bg-glass); }
+.mc-teaser-x svg { width: 16px; height: 16px; }
+.mc-teaser-who { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.mc-teaser-who .mc-avatar { width: 32px; height: 32px; }
+.mc-teaser-who b { font-family: var(--f-display); font-size: 1.05rem; }
+.mc-teaser-text { margin: 0 0 12px; font-size: 0.95rem; line-height: 1.6; }
+.mc-teaser-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-teaser-actions .mc-act { flex: 1 1 auto; }
+.mc-teaser-actions .mc-act-line { flex-basis: 100%; }
+
+/* phones: the launcher becomes a round button; the panel fills the screen */
+@media (max-width: 600px) {
+    .me-chat { inset-block-end: 14px; inset-inline-start: 14px; }
+    .mc-launch { width: 54px; height: 54px; padding: 0; justify-content: center; border-radius: 50%; }
+    .mc-launch-label { display: none; }
+    .mc-teaser { width: calc(100vw - 28px); }
+    .me-chat.mc-open { inset: 0; }
+    .mc-panel { width: 100vw; height: 100svh; border: 0; border-radius: 0; border-top: 3px solid var(--accent); }
+    body.mc-chat-open { overflow: hidden; }
+    body.mc-chat-open .floating-contact { visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mc-panel, .mc-teaser { animation: none; }
+    .mc-typing::after { animation: none; content: "…"; }
+}

@@ -79,7 +79,7 @@
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function word(k) {
         var l = (window.ME && window.ME.lang) || document.documentElement.lang || 'ar';
-        var W = { locate: { ar: 'موقع الورشة', en: 'Workshop location', ku: 'شوێنی کارگە' }, dir: { ar: 'الاتجاهات في خرائط Google', en: 'Directions in Google Maps', ku: 'ئاراستە لە Google Maps' } };
+        var W = { locate: { ar: 'موقع الورشة', en: 'Workshop location', ku: 'شوێنی کارگە', fa: 'مکان کارگاه', tr: 'Atölyenin konumu' }, dir: { ar: 'الاتجاهات في خرائط Google', en: 'Directions in Google Maps', ku: 'ئاراستە لە Google Maps', fa: 'مسیریابی در Google Maps', tr: 'Google Haritalar\'da yol tarifi' } };
         return (W[k] && (W[k][l] || W[k].ar)) || '';
     }
     // Styles for the workshop marker live here so every page with a map (the dashboard too) gets them.
