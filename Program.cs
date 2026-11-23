@@ -6400,8 +6400,8 @@ namespace ConsanWebApp
                     var v = document.createElement('button');
                     v.type = 'button';
                     v.className = 'ou-plan' + (u.voiceRequestedAt ? ' next' : '');
-                    v.innerHTML = '<b>صوتي (Voice)</b><span class="ou-price ltr">$20.00<small> / شهرياً</small></span>' +
-                        '<span>يتصل الزوار بأوريون صوتياً بدل الكتابة</span>' +
+                    v.innerHTML = '<b>صوتي ونصي</b><span class="ou-price ltr">$20.00<small> / شهرياً</small></span>' +
+                        '<span>يتحدث الزوار مع أوريون كتابةً أو باتصال صوتي</span>' +
                         '<small>' + (u.voiceRequestedAt ? 'تم استلام طلبك — سنتواصل معك لتجهيزه' : 'ميزة جديدة: اضغط لطلب تجهيزها') + '</small>';
                     if (!u.voiceRequestedAt) v.onclick = function() { if (confirm('طلب تجهيز أوريون الصوتي ($20 شهرياً)؟')) setOrionUsage({ requestVoice: 'true' }); };
                     plans.appendChild(v);

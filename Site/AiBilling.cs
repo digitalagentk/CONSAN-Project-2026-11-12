@@ -69,7 +69,7 @@ namespace ConsanWebApp
         public sealed class PlanInfo { public string Id = ""; public string Name = ""; public decimal Reserve; }
         public static readonly PlanInfo[] Plans =
         {
-            new PlanInfo { Id = "standard", Name = "نصي (Text)", Reserve = 10m }
+            new PlanInfo { Id = "standard", Name = "نصي", Reserve = 10m }
         };
         public static PlanInfo PlanOf(string id) => Plans.FirstOrDefault(p => p.Id == id) ?? Plans[0];   // retired plans fall back to Text
 
